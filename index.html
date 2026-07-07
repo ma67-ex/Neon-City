@@ -4723,7 +4723,9 @@ function tick(now){
     // you go, so at high speed you must hold longer to reach a sharp turn — full
     // lock is always reachable, it just takes sustained input (no twitchy spinouts).
     const rampBase=v.steerRamp||3.2;                 // higher = quicker to full lock
-    const ramp=rampBase/(1+spd0*0.05);               // slows as speed climbs
+    // slows as speed climbs, but floored so very fast cars (police, 134 m/s) never
+    // collapse to unresponsive — you still need to hold, it just always bites.
+    const ramp=Math.max(rampBase/(1+spd0*0.05), rampBase*0.55);
     let sa=v.steerAng||0;
     if(hb){ sa=steer; }                              // handbrake = instant, for drifts
     else if(steer!==0){ sa+=(steer-sa)*clamp(ramp*dt,0,1); }
