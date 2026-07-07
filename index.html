@@ -4732,7 +4732,7 @@ function tick(now){
     else{ sa*=clamp(1-8*dt,0,1); }                   // recenter quickly on release
     v.steerAng=sa;
     const steerAuth=clamp(spd0/6,0,1)/(1+spd0*0.03);
-    const turn=sa*(hb?3.5:2.7)*steerAuth*dt*Math.sign(v.speed||1);
+    const turn=sa*(hb?3.5:2.7)*steerAuth*(v.turnGain||1)*dt*Math.sign(v.speed||1);
     v.h+=turn;
 
     // ---- carry momentum: velocity lives in the car frame (forward + lateral).
