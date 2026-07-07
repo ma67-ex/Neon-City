@@ -3936,7 +3936,7 @@ for(let i=0;i<4;i++){
   const h=t.axis==='x'?(t.dirSign>0?Math.PI/2:-Math.PI/2):(t.dirSign>0?0:Math.PI);
   // police pursuit jeep tops out around 300 mph (134 m/s ≈ 482 km/h); tanky, never ejects
   const nv=addVehicle(g, kind==='ambulance'?'CITY AMBULANCE':'POLICE PURSUIT', kind==='ambulance'?60:134, kind==='ambulance'?26:90, false, x, z, h, t);
-  if(kind!=='ambulance'){ nv.noEject=true; nv.maxLatAccel=42; }  // police is 300mph — hold high-speed turns wide & stable
+  if(kind!=='ambulance'){ nv.noEject=true; nv.steerRamp=2.2; }  // police is 300mph — slower steer ramp, must hold to turn hard
   attachDriver(nv);
 }
 
