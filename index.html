@@ -4718,7 +4718,17 @@ function tick(now){
     // ---- steering: speed-sensitive authority, no pirouetting when parked ----
     const spd0=Math.abs(v.speed);
     const steerAuth=clamp(spd0/6,0,1)/(1+spd0*0.03);
-    const turn=steer*(hb?3.5:2.7)*steerAuth*dt*Math.sign(v.speed||1);
+    let turn=steer*(hb?3.5:2.7)*steerAuth*dt*Math.sign(v.speed||1);
+    // Cybertruck-style high-speed stability: cap the yaw rate by a max lateral
+    // acceleration, so max turn rate w = A_LAT / v. The faster you go, the wider
+    // the tightest possible turn (radius >= v^2/A_LAT) — you can't spin it out at
+    // speed, and it takes more steering to pull the same angle. Handbrake drifts
+    // and low speed are unaffected; per-vehicle v.maxLatAccel tunes it.
+    if(!hb){
+      const A_LAT=v.maxLatAccel||55;               // lower = wider, calmer high-speed turns
+      const maxTurn=(A_LAT/Math.max(spd0,1))*dt;    // max |yaw| this frame
+      turn=clamp(turn,-maxTurn,maxTurn);
+    }
     v.h+=turn;
 
     // ---- carry momentum: velocity lives in the car frame (forward + lateral).
