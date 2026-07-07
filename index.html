@@ -4727,8 +4727,15 @@ function tick(now){
     // collapse to unresponsive — you still need to hold, it just always bites.
     const ramp=Math.max(rampBase/(1+spd0*0.05), rampBase*0.55);
     let sa=v.steerAng||0;
+    const minA=v.steerMin||0.32;                     // instant baseline angle on any press
     if(hb){ sa=steer; }                              // handbrake = instant, for drifts
-    else if(steer!==0){ sa+=(steer-sa)*clamp(ramp*dt,0,1); }
+    else if(steer!==0){
+      // tap = small INSTANT angle; snap to the baseline right away (also on a
+      // direction flip), then keep holding to ramp the angle up to full lock.
+      if(steer>0 && sa<minA) sa=minA;
+      else if(steer<0 && sa>-minA) sa=-minA;
+      sa+=(steer-sa)*clamp(ramp*dt,0,1);
+    }
     else{ sa*=clamp(1-8*dt,0,1); }                   // recenter quickly on release
     v.steerAng=sa;
     const steerAuth=clamp(spd0/6,0,1)/(1+spd0*0.03);
