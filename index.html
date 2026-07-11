@@ -148,7 +148,7 @@ window.addEventListener('error',function(e){
   if(!d){ d=document.createElement('div'); d.id='fatal';
     d.style.cssText='position:fixed;top:0;left:0;right:0;background:#b00020;color:#fff;font:14px/1.5 monospace;padding:12px 16px;z-index:99;white-space:pre-wrap';
     document.body.appendChild(d); }
-  d.textContent='GAME ERROR: '+(e.message||e.type)+'\nTell Claude what this says and I will fix it.';
+  d.textContent='GAME ERROR: '+(e.message||e.type)+'\nRefresh the page, or report this message if it keeps happening.';
 });
 </script>
 <script>
