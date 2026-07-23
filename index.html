@@ -3931,6 +3931,21 @@ const tlHeadMat=new THREE.MeshLambertMaterial({color:0x1c1f26});
 const tlBulbGeo=new THREE.SphereGeometry(0.1,8,8);
 const tlm=()=>new THREE.MeshBasicMaterial({color:0x222222});
 const TLmats={x:{r:tlm(),y:tlm(),g:tlm()},z:{r:tlm(),y:tlm(),g:tlm()}};
+// stop sign: octagon face + white border, on its own thin pole -- goes on the intersection
+// corners that don't get a traffic light, so every intersection is controlled somehow
+const stopSignPoleGeo=new THREE.CylinderGeometry(0.045,0.06,2.6,6);
+const stopSignFaceTex=canvasTex(128,128,g=>{
+  g.save(); g.translate(64,64);
+  g.fillStyle='#fff'; g.beginPath();
+  for(let i=0;i<8;i++){ const a=Math.PI/8+i*Math.PI/4, x=Math.cos(a)*60, y=Math.sin(a)*60; i===0?g.moveTo(x,y):g.lineTo(x,y); }
+  g.closePath(); g.fill();
+  g.fillStyle='#c81b1b'; g.beginPath();
+  for(let i=0;i<8;i++){ const a=Math.PI/8+i*Math.PI/4, x=Math.cos(a)*54, y=Math.sin(a)*54; i===0?g.moveTo(x,y):g.lineTo(x,y); }
+  g.closePath(); g.fill();
+  g.fillStyle='#fff'; g.font='900 34px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('STOP',0,2);
+  g.restore();
+});
+const stopSignMat=new THREE.MeshBasicMaterial({map:stopSignFaceTex});
 function setTL(o,st){
   o.r.color.set(st==='r'?0xff2f2f:0x351010);
   o.y.color.set(st==='y'?0xffc12f:0x352a10);
@@ -4381,6 +4396,14 @@ function buildChunk(ci,cj){
       }
     });
     cols.push({x0:tlx-0.25,x1:tlx+0.25,z0:tlz-0.25,z1:tlz+0.25});
+  } else if(!isShowroom){
+    // stop sign at the corners that don't get a traffic light -- every intersection controlled
+    const sx=ci*CELL-ROAD_W/2-0.9, sz=cj*CELL-ROAD_W/2-0.9;
+    const spole=new THREE.Mesh(stopSignPoleGeo,poleMat); spole.position.set(sx,1.3,sz); grp.add(spole);
+    const sface=new THREE.Mesh(new THREE.PlaneGeometry(0.55,0.55),stopSignMat);
+    sface.position.set(sx,2.55,sz); sface.rotation.y=Math.PI/4; grp.add(sface);
+    const sfaceB=sface.clone(); sfaceB.rotation.y=Math.PI/4+Math.PI; grp.add(sfaceB);
+    cols.push({x0:sx-0.15,x1:sx+0.15,z0:sz-0.15,z1:sz+0.15});
   }
   // street lamp at the chunk's intersection corner
   if(!isShowroom){
@@ -5169,14 +5192,16 @@ const MODELS={
 };
 // per-archetype handling profiles (grip/drag/steering feel) — GTA handling.cfg-style
 // per-vehicle traction/agility data instead of one global feel for every car
+// turnGain/steerRamp lowered across the board (~30%) for gentler, less twitchy turn-in on
+// every car -- smoother lane changes at speed instead of snapping to full lock
 const HANDLING={
-  vyron :{grip:8.5,turnGain:1.10,steerRamp:4.2,steerMin:.34,drag:.34,dragQ:.0014},
-  divo  :{grip:9.0,turnGain:1.15,steerRamp:4.6,steerMin:.36,drag:.32,dragQ:.0013},
-  royce :{grip:9.2,turnGain:.82,steerRamp:3.2,steerMin:.24,drag:.30,dragQ:.0012},   // gentler steering for smooth high-speed lane changes
-  rosso :{grip:7.5,turnGain:1.05,steerRamp:3.8,steerMin:.32,drag:.38,dragQ:.0015},
-  toro  :{grip:7.8,turnGain:1.08,steerRamp:4.0,steerMin:.33,drag:.37,dragQ:.0015},
-  ghost :{grip:7.2,turnGain:1.00,steerRamp:3.6,steerMin:.31,drag:.39,dragQ:.0016},
-  mpower:{grip:7.0,turnGain:1.20,steerRamp:4.4,steerMin:.34,drag:.36,dragQ:.0015},
+  vyron :{grip:8.5,turnGain:.80,steerRamp:3.0,steerMin:.30,drag:.34,dragQ:.0014},
+  divo  :{grip:9.0,turnGain:.84,steerRamp:3.2,steerMin:.31,drag:.32,dragQ:.0013},
+  royce :{grip:9.2,turnGain:.82,steerRamp:3.2,steerMin:.24,drag:.30,dragQ:.0012,nitroBoost:143.2},   // 125+143.2=268.2 m/s = 600 mph on nitro
+  rosso :{grip:7.5,turnGain:.76,steerRamp:2.7,steerMin:.28,drag:.38,dragQ:.0015},
+  toro  :{grip:7.8,turnGain:.78,steerRamp:2.8,steerMin:.29,drag:.37,dragQ:.0015},
+  ghost :{grip:7.2,turnGain:.73,steerRamp:2.6,steerMin:.27,drag:.39,dragQ:.0016},
+  mpower:{grip:7.0,turnGain:.87,steerRamp:3.1,steerMin:.30,drag:.36,dragQ:.0015},
 };
 
 // ---------- seated driver bust shown inside every roaming car ----------
@@ -5229,7 +5254,7 @@ function makePoliceJeep(){
   const rideH=wheelR+0.16, bodyH=1.0;
   // shaped chassis: profile-extruded body (sloped bull-nose hood + beveled edges) instead of a plain box
   const belt=rideH+bodyH, cabH=0.82;
-  const bodyExtrude={depth:WID,bevelEnabled:true,bevelThickness:.05,bevelSize:.06,bevelSegments:3,curveSegments:14};
+  const bodyExtrude={depth:WID,bevelEnabled:true,bevelThickness:.07,bevelSize:.09,bevelSegments:8,curveSegments:28};   // smoother, less faceted
   const hoodY=belt-0.26;
   const bodyShape=new THREE.Shape();
   bodyShape.moveTo(-L,rideH);
@@ -5272,11 +5297,15 @@ function makePoliceJeep(){
   const hbar2=hbar.clone(); hbar2.position.y=pushY+0.34; g.add(hbar2);
   [-1,1].forEach(s=>{ const st=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.72,0.1),barMat); st.position.set(s*WID*0.34,pushY+0.17,L+0.16); g.add(st); });
   const rbar=new THREE.Mesh(new THREE.BoxGeometry(WID*0.92,0.2,0.14),barMat); rbar.position.set(0,rideH+0.18,-L-0.06); g.add(rbar);
-  // lights
+  // lights -- own tailMat clone (not the shared global) so the brake-flash system every other
+  // car uses (userData.tailMat, flashes bright on braking) also works for the police jeep
+  const policeTailMat=tailOn.clone();
   [[-WID/4],[WID/4]].forEach(([lx])=>{
-    const hl=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.26,0.08),lightOn); hl.position.set(lx,rideH+0.6,L+0.02); g.add(hl);
-    const tl=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.32,0.06),tailOn); tl.position.set(lx,rideH+0.6,-L-0.02); g.add(tl);
+    // mounted above the bull bar's top crossbar (which sits at rideH+0.62) so it doesn't hide them
+    const hl=new THREE.Mesh(new THREE.BoxGeometry(0.44,0.28,0.09),lightOn); hl.position.set(lx,rideH+0.86,L+0.1); g.add(hl);
+    const tl=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.32,0.06),policeTailMat); tl.position.set(lx,rideH+0.6,-L-0.02); g.add(tl);
   });
+  g.userData.tailMat=policeTailMat;
   // livery: UB-style Police — blue dynamic swoosh + "POLICE" + NY seal, one baked decal per door.
   // No canvas mirroring: mirroring flipped the text on one side (lateral-invert bug). Both doors draw the
   // same non-mirrored art so text reads correctly on both sides; layout is centered so it stays symmetric.
@@ -5484,7 +5513,7 @@ const FLEET=[
   ['toro','ACID',67,37,-52,19.5,Math.PI,           0x39ff6a,{spoiler:true}],
   ['ghost','EMBER R',64,35,-40,19.5,Math.PI,       0xff8c1a,{spoiler:true,underglow:0xffb020}],
   ['vyron','MIDNIGHT',72,40,-28,19.5,Math.PI,      0x0f1524,{underglow:0x1f6bff}],
-  ['royce','PORSCHE 918',125,60,-17,19.5,Math.PI, 0xc41313,{spoiler:true}],   // 125 m/s = 450 km/h (600 with nitro)
+  ['royce','PORSCHE 918',125,60,-17,19.5,Math.PI, 0x0c0c0e,{spoiler:true}],   // black matte; 125 m/s=450km/h (600mph w/ nitro)
 ];
 for(const f of FLEET){
   const g=customCar(f[0],f[7],f[8]);
@@ -6530,12 +6559,12 @@ function tick(now){
     // holding the key winds the angle up to full. The ramp gets slower the faster
     // you go, so at high speed you must hold longer to reach a sharp turn — full
     // lock is always reachable, it just takes sustained input (no twitchy spinouts).
-    const rampBase=v.steerRamp||3.2;                 // higher = quicker to full lock
+    const rampBase=v.steerRamp||2.6;                 // higher = quicker to full lock (gentler default)
     // slows as speed climbs, but floored so very fast cars (police, 134 m/s) never
     // collapse to unresponsive — you still need to hold, it just always bites.
     const ramp=Math.max(rampBase/(1+spd0*0.05), rampBase*0.55);
     let sa=v.steerAng||0;
-    const minA=v.steerMin||0.32;                     // instant baseline angle on any press
+    const minA=v.steerMin||0.26;                     // instant baseline angle on any press
     if(hb){ sa=steer; }                              // handbrake = instant, for drifts
     else if(steer!==0){
       // tap = small INSTANT angle; snap to the baseline right away (also on a
@@ -6547,7 +6576,7 @@ function tick(now){
     else{ sa*=clamp(1-8*dt,0,1); }                   // recenter quickly on release
     v.steerAng=sa;
     const steerAuth=clamp(spd0/6,0,1)/(1+spd0*0.03);
-    const turn=sa*(hb?3.5:2.7)*steerAuth*(v.turnGain||1)*dt*Math.sign(v.speed||1);
+    const turn=sa*(hb?3.5:2.7)*steerAuth*(v.turnGain!==undefined?v.turnGain:0.78)*dt*Math.sign(v.speed||1);
     v.h+=turn;
 
     // ---- carry momentum: velocity lives in the car frame (forward + lateral).
@@ -6570,7 +6599,7 @@ function tick(now){
     vlong-=vlong*Math.abs(vlong)*(v.dragQ!==undefined?v.dragQ:0.0016)*dt;
     if(hb) vlong-=vlong*1.8*dt;
     const waterK=waterFactor(v.x,v.z);                // smooth speed/grip penalty near/in the lake
-    vlong=clamp(vlong,-16,(v.max+(nitro?NITRO_BOOST:0))*waterK);   // +150 km/h top speed on nitro
+    vlong=clamp(vlong,-16,(v.max+(nitro?(v.nitroBoost!==undefined?v.nitroBoost:NITRO_BOOST):0))*waterK);
 
     // ---- lateral grip: tyres bleed sideways velocity away; the handbrake (or a
     //      bike) breaks traction so the tail steps out into a drift, then recovers.
