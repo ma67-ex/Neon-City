@@ -18,6 +18,12 @@ export interface CameraRigArgs {
   time: number;
   dt: number;
   speedMs?: number; // m/s, unsigned — drives the speed-FOV widen below; omit (e.g. on foot) for a flat base FOV
+  // chase-mode distance/height behind the target, in meters — default 9.5/4.2
+  // fits every car-sized vehicle (car/bike/boat/plane/helicopter), but a
+  // 58m-long airliner (DrivableAirliner.tsx) needs its own bigger numbers or
+  // the camera sits inside the fuselage/tail instead of behind it.
+  chaseDist?: number;
+  chaseHeight?: number;
 }
 
 // Speed-FOV widen, ported from the original's tick() (index.html ~7704-7705):
@@ -33,7 +39,22 @@ function applySpeedFov(camera: THREE.Camera, camMode: 0 | 1 | 2 | 3, isBike: boo
   camera.updateProjectionMatrix();
 }
 
-export function applyCameraRig({ camera, camPos, camLook, tx, ty, tz, th, isBike, camMode, time, dt, speedMs = 0 }: CameraRigArgs) {
+export function applyCameraRig({
+  camera,
+  camPos,
+  camLook,
+  tx,
+  ty,
+  tz,
+  th,
+  isBike,
+  camMode,
+  time,
+  dt,
+  speedMs = 0,
+  chaseDist = 9.5,
+  chaseHeight = 4.2,
+}: CameraRigArgs) {
   applySpeedFov(camera, camMode, isBike, speedMs, dt);
   const dx = Math.sin(th);
   const dz = Math.cos(th);
@@ -45,10 +66,10 @@ export function applyCameraRig({ camera, camPos, camLook, tx, ty, tz, th, isBike
     const oa = th + cameraLook.yaw;
     const ox = Math.sin(oa);
     const oz = Math.cos(oa);
-    const dist = 9.5;
+    const dist = chaseDist;
     // pitch raises/lowers the camera and pulls it in a little as it climbs, so
     // looking down doesn't leave it hanging out at full chase distance
-    const h = ty + 4.2 + cameraLook.pitch * 5.5;
+    const h = ty + chaseHeight + cameraLook.pitch * 5.5;
     const orbit = dist * (1 - Math.max(0, cameraLook.pitch) * 0.25);
     const want = new THREE.Vector3(tx - ox * orbit, h, tz - oz * orbit);
     // tighten the follow while the cursor is leaning the view, so the lean

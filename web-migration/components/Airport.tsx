@@ -370,7 +370,11 @@ function ParkedHeli({ x, z, h, scale = 2.2 }: { x: number; z: number; h: number;
     if (tail.current) tail.current.rotation.x += dt * 2.4;
   });
   return (
-    <group position={[x, 1.9 * scale, z]} rotation={[0, h, 0]} scale={scale}>
+    // HeliMesh's own skids bottom out at local y ~ -0.83 (see
+    // lib/flightPhysics.ts's HELI_HANDLING.groundClearance comment) — scale
+    // that by the same factor as the group so the skids land on y=0 instead
+    // of hovering.
+    <group position={[x, 0.83 * scale, z]} rotation={[0, h, 0]} scale={scale}>
       <HeliMesh rotorRef={rotor} tailRotorRef={tail} />
     </group>
   );

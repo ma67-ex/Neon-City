@@ -3,6 +3,7 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RigidBody, CuboidCollider, useRapier, type RapierRigidBody, type RapierCollider } from "@react-three/rapier";
+import { PLAYER_GROUPS } from "@/lib/collisionGroups";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, DEFAULT_HANDLING, type CarState, type CarHandling } from "@/lib/carPhysics";
@@ -118,7 +119,11 @@ export function Car() {
     // in the game — skipping them from the sweep means the car's trajectory
     // never slides/stops on a cone, it just plows through while the solver
     // (unaffected by this query filter) still shoves the prop out of the way.
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC);
+    // filterGroups=PLAYER_GROUPS on the sweep itself, not just the collider's
+    // own collisionGroups tag — see Player.tsx's computeColliderMovement for
+    // why the tag alone doesn't make the character-controller query skip
+    // VEHICLE_ONLY colliders (airport gate gap, Airport.tsx).
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, PLAYER_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
@@ -212,10 +217,15 @@ export function Car() {
       {/* Dropped so the collider's BOTTOM face lands on the tyre contact patch
           rather than on the mesh origin. Centred, snapToGround parked the
           chassis at half the box height (0.65) and buried the car 0.33m. */}
+      {/* PLAYER_GROUPS (not the default collide-with-everything) so this,
+          the player's own car, passes through VEHICLE_ONLY colliders like
+          the airport gate gap (Airport.tsx) that stop Traffic/PoliceCar —
+          same trick Player.tsx uses on foot. */}
       <CuboidCollider
         ref={colliderRef}
         args={[carBox.x / 2, carBox.y / 2, carBox.z / 2]}
         position={[0, carBox.y / 2 - RIDE_HEIGHT, 0]}
+        collisionGroups={PLAYER_GROUPS}
       />
       {/* keyed on the stolen paint so the mesh remounts when you take over a
           traffic car — CarMesh pins colour/style at mount (useState), so a

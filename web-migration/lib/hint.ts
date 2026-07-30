@@ -3,8 +3,9 @@ import { vehicleState } from "@/lib/vehicleState";
 import { useHudStore, VEHICLE_NAMES, type VehicleKind } from "@/lib/hudStore";
 import { clubHintText } from "@/lib/club";
 import { trafficPositions } from "@/components/Traffic";
+import { mountRadius } from "@/lib/mountRadius";
 
-const MOUNT_HINT_RADIUS2 = 5 * 5; // slightly wider than the 4.5 mount action radius
+const STEAL_RADIUS2 = 5 * 5; // slightly wider than the 4.5 mount action radius
 
 /** Single source of truth for the #hint line, polled once per frame by
  * Club.tsx (always mounted). Club door takes priority over the vehicle-mount
@@ -17,13 +18,16 @@ export function computeHint(): string | null {
   if (hud.active !== "foot") return null;
 
   let bestName: string | null = null;
-  let bestD2 = MOUNT_HINT_RADIUS2;
+  let bestD2 = Infinity;
   (Object.keys(vehicleState) as VehicleKind[]).forEach((k) => {
     const v = vehicleState[k];
     const dx = v.x - worldState.px;
     const dz = v.z - worldState.pz;
     const d2 = dx * dx + dz * dz;
-    if (d2 < bestD2) {
+    // +0.5 over the mount action's own radius (lib/player.ts) so the hint
+    // never shows for a spot E can't actually reach yet
+    const r2 = (mountRadius(k) + 0.5) ** 2;
+    if (d2 < r2 && d2 < bestD2) {
       bestD2 = d2;
       bestName = VEHICLE_NAMES[k];
     }
@@ -38,7 +42,7 @@ export function computeHint(): string | null {
 
 function nearestStealable(): string | null {
   let name: string | null = null;
-  let bestD2 = MOUNT_HINT_RADIUS2;
+  let bestD2 = STEAL_RADIUS2;
   for (const t of trafficPositions) {
     if (t.stolen) continue;
     const dx = t.x - worldState.px;

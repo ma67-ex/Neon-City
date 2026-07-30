@@ -46,6 +46,41 @@ const rainGeo = (() => {
   return g;
 })();
 
+// snow: soft round dot (vs rain's vertical streak), same procedural-canvas-
+// texture idiom as rainTex above — ported the visual idea from
+// rauschermate/react-weather-effects' SnowEffect, not its full custom GLSL
+// shader (that demo's per-flake rotation/distortion/flip is built for a
+// static-camera page where snow IS the content; here it's ambient weather
+// glimpsed while driving, so the existing rain Points/PointsMaterial pattern
+// already covers it for a fraction of the code).
+const snowCanvas = document.createElement("canvas");
+snowCanvas.width = snowCanvas.height = 32;
+const sg = snowCanvas.getContext("2d")!;
+const srad = sg.createRadialGradient(16, 16, 0, 16, 16, 16);
+srad.addColorStop(0, "rgba(255,255,255,.95)");
+srad.addColorStop(1, "rgba(255,255,255,0)");
+sg.fillStyle = srad;
+sg.fillRect(0, 0, 32, 32);
+const snowTex = new THREE.CanvasTexture(snowCanvas);
+
+const SNOW_N = 400;
+const snowY = new Float32Array(SNOW_N);
+const snowBaseX = new Float32Array(SNOW_N);
+const snowBaseZ = new Float32Array(SNOW_N);
+const snowPhase = new Float32Array(SNOW_N);
+const snowGeo = (() => {
+  const pos = new Float32Array(SNOW_N * 3);
+  for (let i = 0; i < SNOW_N; i++) {
+    pos[i * 3] = snowBaseX[i] = (Math.random() * 2 - 1) * 55;
+    pos[i * 3 + 1] = snowY[i] = Math.random() * 40;
+    pos[i * 3 + 2] = snowBaseZ[i] = (Math.random() * 2 - 1) * 55;
+    snowPhase[i] = Math.random() * Math.PI * 2;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  return g;
+})();
+
 const cGrey = new THREE.Color(0x8a94a0);
 const tmpColor = new THREE.Color();
 
@@ -53,6 +88,9 @@ export function Weather() {
   const { scene } = useThree();
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
+  const snowPointsRef = useRef<THREE.Points>(null);
+  const snowMaterialRef = useRef<THREE.PointsMaterial>(null);
+  const clockRef = useRef(0);
 
   // imperatively mutating scene.fog/background/hemi here every frame is the
   // documented R3F pattern (see SkyCycle.tsx's own useFrame, same rationale)
@@ -82,15 +120,16 @@ export function Weather() {
     const isRain = weatherState.kind === "rain";
     const isFog = weatherState.kind === "fog";
     const isOver = weatherState.kind === "overcast";
+    const isSnow = weatherState.kind === "snow";
 
-    const tgtNear = isFog ? 18 : isRain ? 55 : isOver ? 95 : 110;
-    const tgtFar = isFog ? 95 : isRain ? 210 : isOver ? 320 : 430;
+    const tgtNear = isFog ? 18 : isSnow ? 40 : isRain ? 55 : isOver ? 95 : 110;
+    const tgtFar = isFog ? 95 : isSnow ? 150 : isRain ? 210 : isOver ? 320 : 430;
     const fog = scene.fog as THREE.Fog;
     // eslint-disable-next-line react-hooks/immutability -- see note above useFrame
     fog.near = THREE.MathUtils.lerp(fog.near, tgtNear, Math.min(1, dt * 0.5));
     fog.far = THREE.MathUtils.lerp(fog.far, tgtFar, Math.min(1, dt * 0.5));
 
-    const greyK = isFog ? 0.55 : isRain ? 0.4 : isOver ? 0.3 : 0;
+    const greyK = isFog ? 0.55 : isSnow ? 0.45 : isRain ? 0.4 : isOver ? 0.3 : 0;
     if (greyK > 0) {
       tmpColor.copy(fog.color).lerp(cGrey, greyK * 0.5);
       fog.color.copy(tmpColor);
@@ -116,10 +155,37 @@ export function Weather() {
       posAttr.needsUpdate = true;
     }
 
-    weatherState.wetGrip = THREE.MathUtils.lerp(weatherState.wetGrip, isRain ? 0.8 : 1, Math.min(1, dt * 0.8));
+    const snowMat = snowMaterialRef.current;
+    const snowPts = snowPointsRef.current;
+    if (snowMat && snowPts) {
+      clockRef.current += dt;
+      const t = clockRef.current;
+      const snowTarget = isSnow ? 0.6 : 0;
+      snowMat.opacity = THREE.MathUtils.lerp(snowMat.opacity, snowTarget, Math.min(1, dt * 3));
+      if (snowMat.opacity > 0.01) {
+        snowPts.position.set(worldState.px, 0, worldState.pz);
+        const posAttr = snowPts.geometry.attributes.position as THREE.BufferAttribute;
+        for (let i = 0; i < SNOW_N; i++) {
+          snowY[i] -= dt * 10; // slower fall + sway vs rain's straight-down streak
+          if (snowY[i] < 0) snowY[i] += 40;
+          posAttr.setX(i, snowBaseX[i] + Math.sin(t * 0.6 + snowPhase[i]) * 1.5);
+          posAttr.setY(i, snowY[i]);
+          posAttr.setZ(i, snowBaseZ[i] + Math.cos(t * 0.5 + snowPhase[i]) * 1.5);
+        }
+        posAttr.needsUpdate = true;
+      }
+    }
+
+    // snow packs the road tighter than rain wets it — lower grip target
+    weatherState.wetGrip = THREE.MathUtils.lerp(
+      weatherState.wetGrip,
+      isRain ? 0.8 : isSnow ? 0.6 : 1,
+      Math.min(1, dt * 0.8)
+    );
   });
 
   return (
+    <>
     <points ref={pointsRef} geometry={rainGeo}>
       <pointsMaterial
         ref={materialRef}
@@ -133,5 +199,19 @@ export function Weather() {
         depthWrite={false}
       />
     </points>
+    <points ref={snowPointsRef} geometry={snowGeo}>
+      <pointsMaterial
+        ref={snowMaterialRef}
+        color={0xffffff}
+        size={0.6}
+        map={snowTex}
+        transparent
+        opacity={0}
+        fog={false}
+        sizeAttenuation
+        depthWrite={false}
+      />
+    </points>
+    </>
   );
 }

@@ -2,8 +2,7 @@ import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
 import { useHudStore, type VehicleKind } from "@/lib/hudStore";
 import { requestPlayerTeleport } from "@/lib/playerTeleport";
-
-const MOUNT_RADIUS2 = 4.5 * 4.5; // same threshold as the original's nearestVehicle(player.x,player.z,4.5)
+import { mountRadius } from "@/lib/mountRadius";
 
 /** Ported from the original's toggleVehicle(): mount the nearest vehicle in
  * range when on foot, or dismount the current one back to on-foot. The
@@ -16,7 +15,7 @@ export function toggleVehicleFoot(): boolean {
   const hud = useHudStore.getState();
   if (hud.active === "foot") {
     let best: VehicleKind | null = null;
-    let bestD2 = MOUNT_RADIUS2;
+    let bestD2 = Infinity;
     (Object.keys(vehicleState) as VehicleKind[]).forEach((k) => {
       const v = vehicleState[k];
       const dx = v.x - worldState.px;
@@ -28,7 +27,8 @@ export function toggleVehicleFoot(): boolean {
       // ground/water level that treating a missing `y` as 0 is correct.
       const dy = (v.y ?? 0) - worldState.py;
       const d2 = dx * dx + dy * dy + dz * dz;
-      if (d2 < bestD2) {
+      const r2 = mountRadius(k) ** 2;
+      if (d2 < r2 && d2 < bestD2) {
         bestD2 = d2;
         best = k;
       }

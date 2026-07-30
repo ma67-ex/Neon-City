@@ -2,9 +2,9 @@
 // states that cycle over time and blend fog/sky/traction rather than snapping.
 // Same plain-mutable-singleton pattern as skyState/worldState — Weather.tsx
 // writes this every frame, carPhysics.ts reads wetGrip without subscribing.
-export const WEATHER = ["clear", "overcast", "rain", "fog"] as const;
+export const WEATHER = ["clear", "overcast", "rain", "fog", "snow"] as const;
 export type Weather = (typeof WEATHER)[number];
-const WEATHER_W = [0.5, 0.22, 0.2, 0.08];
+const WEATHER_W = [0.45, 0.2, 0.18, 0.07, 0.1];
 
 export const weatherState = {
   kind: "clear" as Weather,

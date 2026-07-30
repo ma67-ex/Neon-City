@@ -89,6 +89,11 @@ export function DrivableAirliner({ id, liveryColor, cargo }: { id: AirlinerId; l
       time: state.clock.elapsedTime,
       dt: d,
       speedMs: Math.abs(fs.current.speed),
+      // AIRLINER_LEN=58 nose-to-tail — the shared 9.5/4.2 chase default
+      // (sized for a ~4.6m car) puts the camera inside the fuselage; clear
+      // the ~28m tail with real margin instead.
+      chaseDist: 48,
+      chaseHeight: 18,
     });
 
     const grounded = pos.current.y <= AIRLINER_HANDLING.groundClearance + 0.02;

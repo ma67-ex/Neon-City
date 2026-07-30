@@ -181,7 +181,13 @@ export function Player() {
 
     const dx = Math.sin(foot.current.h) * foot.current.speed * d;
     const dz = Math.cos(foot.current.h) * foot.current.speed * d;
-    controller.computeColliderMovement(collider, { x: dx, y: foot.current.vy * d, z: dz });
+    // filterGroups=PLAYER_GROUPS on the sweep itself: the collider's own
+    // collisionGroups tag only governs contact-solving between overlapping
+    // bodies, not this manual character-controller query — without passing
+    // it here too, the sweep collides with everything regardless of the
+    // collider's tag, defeating VEHICLE_ONLY colliders (airport gate gap,
+    // Airport.tsx) that are meant to be invisible to the player.
+    controller.computeColliderMovement(collider, { x: dx, y: foot.current.vy * d, z: dz }, undefined, PLAYER_GROUPS);
     const grounded = controller.computedGrounded();
     groundedRef.current = grounded;
     if (grounded && foot.current.vy <= 0) foot.current.vy = 0;
