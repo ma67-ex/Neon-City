@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { weatherState, pickWeather } from "@/lib/weatherState";
+import { coatScene, weatherCoatUniforms } from "@/lib/weatherCoat";
 
 // Rendered after <SkyCycle/> in Game.tsx so this useFrame runs after its
 // day/night one each frame: SkyCycle owns scene.fog's base color/near/far off
@@ -91,6 +92,9 @@ export function Weather() {
   const snowPointsRef = useRef<THREE.Points>(null);
   const snowMaterialRef = useRef<THREE.PointsMaterial>(null);
   const clockRef = useRef(0);
+  // re-scan periodically (not once) so buildings/props/traffic streamed in
+  // after mount (this is a chunk-streamed open world) still get coated
+  const coatScanRef = useRef(0);
 
   // imperatively mutating scene.fog/background/hemi here every frame is the
   // documented R3F pattern (see SkyCycle.tsx's own useFrame, same rationale)
@@ -182,6 +186,24 @@ export function Weather() {
       isRain ? 0.8 : isSnow ? 0.6 : 1,
       Math.min(1, dt * 0.8)
     );
+
+    // ground/car-roof/tree-top/building-top wet & snow-coat shader — slow
+    // ramp (~3s) so accumulation reads as gradual, not a hard cut
+    weatherCoatUniforms.uSnowAmount.value = THREE.MathUtils.lerp(
+      weatherCoatUniforms.uSnowAmount.value,
+      isSnow ? 1 : 0,
+      Math.min(1, dt * 0.3)
+    );
+    weatherCoatUniforms.uWetAmount.value = THREE.MathUtils.lerp(
+      weatherCoatUniforms.uWetAmount.value,
+      isRain ? 1 : 0,
+      Math.min(1, dt * 0.3)
+    );
+    coatScanRef.current -= dt;
+    if (coatScanRef.current <= 0) {
+      coatScene(scene);
+      coatScanRef.current = 2;
+    }
   });
 
   return (

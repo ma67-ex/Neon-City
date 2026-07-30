@@ -74,6 +74,9 @@ export function Water() {
         emissive="#0a2138"
         emissiveIntensity={0.04}
         map={seaRippleTex}
+        // opts out of lib/weatherCoat.ts's scene-wide snow/wet shader patch —
+        // open water going white or "wetter" during weather makes no sense
+        userData={{ weatherCoated: true }}
       />
     </mesh>
   );
