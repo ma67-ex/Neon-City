@@ -8,6 +8,7 @@ import { useHudStore } from "@/lib/hudStore";
 import { SHORE_X } from "@/lib/marina";
 import { PersonFigure, PERSON_MODEL_HEIGHT } from "@/components/PersonFigure";
 import { AIRPORT_CHUNKS } from "@/components/City";
+import { requestPedestrianHitSlowdown } from "@/lib/pedestrianHit";
 
 // Real port of the original's pedestrian system (index.html ~line 6148-6182,
 // 7591-7632): 44 civilians + 7 cops, each walking a 72m square loop around a
@@ -217,6 +218,10 @@ function Ped({ spec }: { spec: PedSpec }) {
             spin: (Math.random() * 2 - 1) * (fast ? 12 : 4),
             air: true,
           };
+          // ported from the original's tick(): the car itself loses 10% speed
+          // in the same beat the ragdoll fires — the collision costs the
+          // driver something too, not just the pedestrian (lib/pedestrianHit.ts)
+          requestPedestrianHitSlowdown();
           return;
         }
       }
