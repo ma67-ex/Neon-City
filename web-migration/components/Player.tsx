@@ -124,9 +124,22 @@ export function Player() {
       foot.current.h = playerTeleport.h;
       camYaw.current = playerTeleport.h; // snap, don't let the camera swing in from the old heading
       foot.current.speed = 0;
-      foot.current.vy = 0;
       slide.current.x = playerTeleport.vx;
       slide.current.z = playerTeleport.vz;
+      // Hard bail: launch + tumble, same beat Pedestrians.tsx gives a struck
+      // ped, just driven through the player's REAL collision-aware controller
+      // (foot.current.vy/gravity) instead of that component's freehand mesh
+      // sim — the player already has one, no need for a second physics path.
+      const ejectSpeed = Math.hypot(playerTeleport.vx, playerTeleport.vz);
+      if (ejectSpeed > RAGDOLL_MIN_SPEED) {
+        const hard = ejectSpeed > 16; // ~58 km/h — same "fast" cut Pedestrians.tsx uses
+        foot.current.vy = Math.min(10, (hard ? 5.5 : 3.2) + ejectSpeed * 0.15);
+        ragdoll.current = { air: true, lieT: 0, spin: (Math.random() * 2 - 1) * (hard ? 10 : 4) };
+      } else {
+        foot.current.vy = 0;
+        ragdoll.current = null;
+      }
+      groupRef.current.rotation.x = 0; // start upright; tumble accrues from here if ragdolling
       worldState.px = playerTeleport.x;
       worldState.pz = playerTeleport.z;
       worldState.heading = playerTeleport.h;
