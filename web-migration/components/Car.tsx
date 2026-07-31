@@ -188,6 +188,8 @@ export function Car() {
     vehicleState.car.x = nextPos.x;
     vehicleState.car.z = nextPos.z;
     vehicleState.car.h = car.current.h;
+    vehicleState.car.speed = car.current.speed;
+    vehicleState.car.vLat = car.current.vLat;
 
     if (!isActive) return;
     worldState.px = nextPos.x;
