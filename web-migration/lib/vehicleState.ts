@@ -9,7 +9,13 @@ import type { VehicleKind } from "@/lib/hudStore";
 // per-frame vehicleState writes). Every other vehicle stays close enough to
 // ground/water level that lib/player.ts's mount-range scan treats a missing
 // `y` as 0, which is correct for all of them.
-export const vehicleState: Record<VehicleKind, { x: number; z: number; h: number; y?: number }> = {
+// `speed`/`vLat` are optional too, only written by the 5 carPhysics.ts-driven
+// vehicles (Car/Bike/PoliceCar/Boat/PatrolBoat — see each one's own per-frame
+// write next to x/z/h). lib/player.ts reads them at dismount to hand the
+// player a bail-out velocity instead of a dead stop; flight vehicles don't
+// write them, so dismounting a plane/helicopter/jet/airliner correctly
+// inherits none.
+export const vehicleState: Record<VehicleKind, { x: number; z: number; h: number; y?: number; speed?: number; vLat?: number }> = {
   car: { x: 0, z: 0, h: 0 },
   bike: { x: -20, z: 0, h: 0 },
   boat: { x: 595, z: 0, h: Math.PI }, // in the water off EAST MARINA, matches Boat.tsx's own default
