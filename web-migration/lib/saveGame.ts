@@ -41,6 +41,7 @@ export function saveGame() {
       active: hud.active,
       camMode: hud.camMode,
       lightMode: hud.lightMode,
+      lookSensitivity: hud.lookSensitivity,
       muted: isMuted(),
       dayPhase: skyState.phase,
       vehicles: vehicleState,
