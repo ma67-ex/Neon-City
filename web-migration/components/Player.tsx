@@ -108,6 +108,8 @@ export function Player() {
       camYaw.current = playerTeleport.h; // snap, don't let the camera swing in from the old heading
       foot.current.speed = 0;
       foot.current.vy = 0;
+      slide.current.x = playerTeleport.vx;
+      slide.current.z = playerTeleport.vz;
       worldState.px = playerTeleport.x;
       worldState.pz = playerTeleport.z;
       worldState.heading = playerTeleport.h;
