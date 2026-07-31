@@ -47,8 +47,22 @@ const GRAV_OTHER = -20;
 // just hit the pavement running, not a walking-speed decel. At this rate a
 // ~20 m/s eject (72 km/h) skids roughly v0/SLIDE_DRAG ≈ 5-6m before stopping.
 const SLIDE_DRAG = 3.5;
+// Below this eject speed, a dismount (parked/barely-moving vehicle) stays the
+// original calm step-out — no tumble for stepping out of a car at walking pace.
+const RAGDOLL_MIN_SPEED = 3;
+// How long he lies flat after landing before standing back up and handing
+// control back — Pedestrians.tsx's own ragdoll uses 4.5s + a full get-up
+// check, but that's AI cosmetics; this is the actual player, so it's a beat,
+// not a timeout.
+const RAGDOLL_LIE_TIME = 0.6;
 
 const START = { x: -48, z: 20, h: Math.PI }; // near VENU, matches the original's player spawn
+
+interface FootRagdoll {
+  air: boolean; // still tumbling; false once landed and lying flat
+  lieT: number; // seconds spent lying flat, counts up only once air is false
+  spin: number; // rad/s applied to groupRef's rotation.x while air
+}
 
 export function Player() {
   const { world } = useRapier();
