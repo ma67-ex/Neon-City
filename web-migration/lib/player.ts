@@ -41,7 +41,15 @@ export function toggleVehicleFoot(): boolean {
     const v = vehicleState[hud.active as VehicleKind];
     const sx = v.x + Math.cos(v.h) * 2.4;
     const sz = v.z - Math.sin(v.h) * 2.4;
-    requestPlayerTeleport(sx, sz, v.h);
+    // Bail-out momentum: only carPhysics.ts-driven vehicles (car/bike/
+    // policeCar/boat/patrolBoat) write speed/vLat, so dismounting a plane/
+    // helicopter/jet/airliner falls through to 0/0 — a dead stop, same as
+    // before this existed, which is correct until flight ejection is its
+    // own feature. World-space conversion matches carPhysics.ts's own
+    // dir=[sin h, cos h] convention exactly (same rotation, undivided by dt).
+    const vx = Math.sin(v.h) * (v.speed ?? 0) + Math.cos(v.h) * (v.vLat ?? 0);
+    const vz = Math.cos(v.h) * (v.speed ?? 0) - Math.sin(v.h) * (v.vLat ?? 0);
+    requestPlayerTeleport(sx, sz, v.h, vx, vz);
     hud.setActive("foot");
     hud.showMsg("ON FOOT");
     return true;
