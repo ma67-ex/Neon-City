@@ -65,6 +65,9 @@ interface HudState {
   // paint/roofline the player's sedan is currently wearing after a steal
   // (lib/steal.ts); null = its own factory colour. Consumed by Car.tsx.
   stolenCar: { color: string; style: CarStyle } | null;
+  // multiplier on lib/cameraLook.ts's YAW/PITCH_SENSITIVITY, player-tunable
+  // via the HUD slider (components/HUD.tsx). 1 = the tuned default feel.
+  lookSensitivity: number;
   setHud: (speedKmh: number, grounded: boolean) => void;
   toggleActive: () => void;
   setActive: (m: ActiveMode) => void;
