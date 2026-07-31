@@ -229,6 +229,8 @@ export function Player() {
         camYaw.current = START.h;
         foot.current.speed = 0;
         foot.current.vy = 0;
+        slide.current.x = 0;
+        slide.current.z = 0;
         worldState.px = START.x;
         worldState.pz = START.z;
         worldState.heading = START.h;
