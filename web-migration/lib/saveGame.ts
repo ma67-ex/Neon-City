@@ -11,6 +11,9 @@ interface SaveData {
   // optional: saves written before headlights existed won't have it, and the
   // loader falls back to AUTO rather than crashing on an older save
   lightMode?: LightMode;
+  // optional: same reasoning — saves from before the sensitivity slider
+  // existed fall back to 1 (the tuned default) rather than crashing
+  lookSensitivity?: number;
   muted: boolean;
   dayPhase: number;
   vehicles: typeof vehicleState;
