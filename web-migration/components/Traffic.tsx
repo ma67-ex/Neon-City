@@ -2,15 +2,18 @@
 
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
+import { RigidBody, CuboidCollider, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { CarMesh } from "@/components/Car";
 import { RIDE_HEIGHT, styleFor, type CarStyle } from "@/components/SupercarBody";
 import { PoliceCarMesh } from "@/components/PoliceCar";
+import { PoliceJeepMesh } from "@/components/ParkedPoliceJeep";
 import { CommercialBody, type CommercialKind } from "@/components/CommercialBody";
 import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
+import { pedestrianPositions } from "@/components/Pedestrians";
+import { spawnDebris } from "@/lib/debris";
 
 // Basic traffic AI (Phase 3, part of Milestone 4): a handful of self-driving
 // cars patrolling straight lanes. Deliberately not the original's full
@@ -30,6 +33,11 @@ interface Lane {
   speed: number;
   color: string;
   police?: boolean;
+  // a police lane that renders the boxy security jeep (PoliceJeepMesh) instead
+  // of the interceptor — steals into components/PoliceJeep.tsx's "policeJeep"
+  // identity rather than the shared "policeCar" one. Mutually exclusive with
+  // `police` in practice (see TrafficCar's render branch — jeep checked first).
+  policeJeep?: boolean;
   // undefined = existing sedan (CarMesh), unchanged. Buses/trucks are given
   // slower speeds below than their sedan-lane equivalents — bigger vehicle,
   // slower arcade "traffic" read, same reasoning as the police lanes topping
@@ -44,15 +52,15 @@ interface Lane {
 // (VEHICLE_ONLY curb at cx±40, see lib/collisionGroups.ts), so a lane anywhere
 // off that grid drives straight into a curb. `lane` (the fixed cross-axis
 // value) is therefore always an odd multiple of 50.
-// AIRPORT_MIN: components/Airport.tsx's fence sits at world x=-60 (AX=-300 +
+// AIRPORT_MIN: components/Airport.tsx's fence sits at world x=-510 (AX=-750 +
 // FENCE_X=240), with its gate opening centred exactly on the z=50 road line
 // (GATE_CZ) — an x-axis lane running to the old min=-85 drove straight
 // through that gate and out the other side, reading as "NPC traffic wanders
 // into the airport and comes back." Every x-axis lane below is clamped to
 // stay clear of the fence instead (z-axis lanes are fixed at x=50/-50 and
-// never get anywhere near the airport's x=-540..-60 footprint, so they don't
+// never get anywhere near the airport's x=-990..-510 footprint, so they don't
 // need it).
-const AIRPORT_MIN = -55;
+const AIRPORT_MIN = -505;
 const LANES: Lane[] = [
   { axis: "x", lane: 50, min: AIRPORT_MIN, max: 85, speed: 10, color: "#8b93a1" },
   { axis: "x", lane: -50, min: AIRPORT_MIN, max: 85, speed: 13, color: "#3a3f4a" },
@@ -84,10 +92,18 @@ const LANES: Lane[] = [
   { axis: "z", lane: 50, min: -85, max: 85, speed: 10, color: "#0c0c0e", police: true },
 
   // airport perimeter patrol: same lane mechanic, entirely inside the fence
-  // (world x -520..-90, world z 0) so it can never clip the gate/wall the
+  // (world x -970..-540, world z 100) so it can never clip the gate/wall the
   // way the city lanes above were fixed to avoid — steal it like any other
   // police lane (lib/steal.ts) for "drive the airport police car" duty.
-  { axis: "x", lane: 100, min: -520, max: -90, speed: 9, color: "#0c0c0e", police: true },
+  { axis: "x", lane: 100, min: -970, max: -540, speed: 9, color: "#0c0c0e", police: true },
+  // the gate-guard trio (components/Airport.tsx's GateGuardPost used to park
+  // them statically) now actually patrols the field instead of just sitting
+  // there — two more interceptor lanes plus one security-jeep lane, all
+  // inside the fence (world x -990..-510, z -140..340 — Airport.tsx's
+  // FENCE_X/FENCE_Z=240 around AX/AZ -750/100).
+  { axis: "x", lane: 180, min: -970, max: -540, speed: 10, color: "#0c0c0e", police: true },
+  { axis: "z", lane: -850, min: -100, max: 280, speed: 10, color: "#0c0c0e", police: true },
+  { axis: "z", lane: -600, min: -50, max: 250, speed: 8, color: "#0c0c0e", policeJeep: true },
 ];
 
 // Live per-lane traffic slot — same shared-singleton pattern as skyState/
@@ -101,6 +117,12 @@ export interface TrafficSlot {
   color: string;
   style: CarStyle;
   police: boolean;
+  // renders/steals as the security jeep (components/PoliceJeep.tsx's
+  // "policeJeep" identity) instead of the interceptor — see Lane.policeJeep.
+  policeJeep: boolean;
+  // undefined = sedan. Read by lib/steal.ts so hijacking a commercial lane
+  // hands the player a real jeep/bus/truck instead of a reskinned sedan.
+  kind?: CommercialKind;
   // taken by the player (lib/steal.ts): the NPC is hidden and inert until
   // respawnIn runs out, then it re-enters at the end of its lane as a fresh car
   stolen: boolean;
@@ -119,6 +141,8 @@ export const trafficPositions: TrafficSlot[] = LANES.map((l, i) => ({
   color: l.color,
   style: styleFor(i),
   police: !!l.police,
+  policeJeep: !!l.policeJeep,
+  kind: l.kind,
   stolen: false,
   respawnIn: 0,
 }));
@@ -141,6 +165,14 @@ export function Traffic() {
 const RECRUIT_RADIUS2 = 70 * 70; // matches the original's d2<70*70 land-convoy recruit check
 
 const STOP_DISTANCE = 7; // ahead-of-car braking gap — city sedan is 4.6 long, this clears it plus a margin
+// bus/truck are much longer than the sedan STOP_DISTANCE was sized for — scale
+// the gap by body length so one doesn't visually clip through whatever it's
+// braking for (jeep is close enough to sedan length to use the flat default)
+function stopDistanceFor(lane: Lane): number {
+  if (lane.kind === "bus") return STOP_DISTANCE * 1.9; // ~6.5m body
+  if (lane.kind === "truck") return STOP_DISTANCE * 1.6; // ~5.6m body
+  return STOP_DISTANCE;
+}
 const LANE_HALF_WIDTH = 4.5; // covers either side of the centreline (±LANE_OFFSET) plus car width/slop
 const LANE_OFFSET = 3; // sideways shift off the road centreline (road is 20 wide, this stays well inside it)
 
@@ -149,30 +181,56 @@ const LANE_OFFSET = 3; // sideways shift off the road centreline (road is 20 wid
 // which one is actually active (a parked-and-abandoned car still updates
 // its own x/z), so this also works if the player gets out and walks away.
 //
-// The player ON FOOT is in this list too. Traffic cars carry no collider at
-// all (kinematic, driven purely by the scripted lane position below), and
-// Rapier never resolves kinematic-vs-kinematic overlap anyway, so nothing in
-// the physics world was stopping a lane car driving clean through someone
-// standing in the road. worldState.px/pz IS the on-foot position whenever
-// `foot` is the active mode, so no new plumbing is needed to find them.
+// The player ON FOOT is in this list too, and so is every pedestrian
+// (components/Pedestrians.tsx's pedestrianPositions) — that used to be
+// missing entirely, so a lane car drove clean through anyone standing in the
+// road (Pedestrians.tsx's own hit/ragdoll test only ever covers the PLAYER's
+// driven vehicle, never a scripted lane car). Traffic cars are
+// kinematicPosition and driven purely by the scripted lane position below —
+// even with a real collider now (see colliderBoxFor), Rapier never resolves
+// kinematic-vs-kinematic overlap, so this stop-short check is the only thing
+// that actually prevents the clip-through, physics collider or not.
 const obstacles: { x: number; z: number }[] = [];
 const footPos = { x: 0, z: 0 }; // scratch, so the on-foot check allocates nothing per frame
 function laneBlocked(lane: Lane, nextPos: number, dir: number): boolean {
   obstacles.length = 0; // reused across frames/cars — never reallocated
-  obstacles.push(vehicleState.car, vehicleState.bike, vehicleState.policeCar);
+  obstacles.push(
+    vehicleState.car,
+    vehicleState.bike,
+    vehicleState.policeCar,
+    vehicleState.policeJeep,
+    vehicleState.jeep,
+    vehicleState.bus,
+    vehicleState.truck,
+    ...pedestrianPositions
+  );
   if (useHudStore.getState().active === "foot") {
     footPos.x = worldState.px;
     footPos.z = worldState.pz;
     obstacles.push(footPos);
   }
+  const stopDistance = stopDistanceFor(lane);
   for (const v of obstacles) {
     const along = lane.axis === "x" ? v.x : v.z;
     const across = lane.axis === "x" ? v.z : v.x;
     if (Math.abs(across - lane.lane) > LANE_HALF_WIDTH) continue; // not in this lane
     const gap = along - nextPos; // signed distance from where we're about to be
-    if (gap * dir > 0 && Math.abs(gap) < STOP_DISTANCE) return true; // only stop for what's ahead, not what's already behind
+    if (gap * dir > 0 && Math.abs(gap) < stopDistance) return true; // only stop for what's ahead, not what's already behind
   }
   return false;
+}
+
+// [width, height, length] per body, eyeballed off CommercialBody.tsx's actual
+// mesh extents (sedan matches Car.tsx's own carBox). Root-cause fix for the
+// player/police car driving straight through every traffic vehicle — this
+// RigidBody had colliders={false} and never added one at all.
+function colliderBoxFor(lane: Lane): [number, number, number] {
+  if (lane.police) return [1.9, 1.35, 4.8]; // matches PoliceCar.tsx's own carBox
+  if (lane.policeJeep) return [1.95, 1.4, 4.4]; // matches PoliceJeep.tsx's own carBox
+  if (lane.kind === "bus") return [2.2, 2.3, 6.5];
+  if (lane.kind === "truck") return [2.1, 2.0, 5.6];
+  if (lane.kind === "jeep") return [1.95, 1.5, 3.6];
+  return [1.85, 1.3, 4.6]; // sedan, matches Car.tsx's carBox
 }
 
 function TrafficCar({ lane, seed, index }: { lane: Lane; seed: number; index: number }) {
@@ -183,6 +241,7 @@ function TrafficCar({ lane, seed, index }: { lane: Lane; seed: number; index: nu
   const convoyPos = useRef<{ x: number; z: number } | null>(null);
   const lightRefs = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
   const meshRef = useRef<THREE.Group>(null);
+  const wasBlocked = useRef(false); // rising-edge latch for the debris burst below
 
   useFrame((state, dt) => {
     const body = bodyRef.current;
@@ -212,12 +271,30 @@ function TrafficCar({ lane, seed, index }: { lane: Lane; seed: number; index: nu
     // out of the convoy resumes patrol from a live position instead of
     // teleporting back to wherever the lane loop was left off — UNLESS a real
     // vehicle (parked or otherwise) is sitting in the way: traffic cars are
-    // kinematic and driven purely by this scripted position, with no
-    // collider (Rapier never resolves kinematic-vs-kinematic overlap), so
-    // without this check they'd drive straight through a parked car instead
-    // of stopping short of it.
+    // kinematic and driven purely by this scripted position, and Rapier never
+    // resolves kinematic-vs-kinematic overlap even with the real collider
+    // added below, so without this check they'd drive straight through a
+    // parked car instead of stopping short of it.
     const nextPos = pos.current + lane.speed * dir.current * d;
-    if (!laneBlocked(lane, nextPos, dir.current)) {
+    const blocked = laneBlocked(lane, nextPos, dir.current);
+    // collision effect: fire once on the frame this car first has to brake
+    // for something (a real vehicle or a pedestrian — see laneBlocked's own
+    // comment) rather than every frame it sits there, and only while it was
+    // actually making progress (lane.speed>0) so a lane's own min/max
+    // endpoints — which reverse direction through a separate branch below,
+    // not through laneBlocked — never trigger it.
+    if (blocked && !wasBlocked.current && lane.speed > 3) {
+      spawnDebris({
+        x: slot.x,
+        y: RIDE_HEIGHT + 0.3,
+        z: slot.z,
+        dx: lane.axis === "x" ? dir.current : 0,
+        dz: lane.axis === "z" ? dir.current : 0,
+        power: Math.max(0.3, Math.min(1, lane.speed / 15)),
+      });
+    }
+    wasBlocked.current = blocked;
+    if (!blocked) {
       pos.current = nextPos;
       if (pos.current > lane.max) {
         pos.current = lane.max;
@@ -283,6 +360,12 @@ function TrafficCar({ lane, seed, index }: { lane: Lane; seed: number; index: nu
       const flashRed = Math.floor(state.clock.elapsedTime * 5) % 2 === 0;
       if (lightRefs.current[0]) lightRefs.current[0].color.set(flashRed ? "#ff2020" : "#160000");
       if (lightRefs.current[1]) lightRefs.current[1].color.set(flashRed ? "#0a1030" : "#2040ff");
+    } else if (lane.policeJeep) {
+      // same flash, no convoy-recruit — the jeep patrols the field on its own,
+      // it doesn't chase the player down like a pursuit interceptor
+      const flashRed = Math.floor(state.clock.elapsedTime * 5) % 2 === 0;
+      if (lightRefs.current[0]) lightRefs.current[0].color.set(flashRed ? "#ff2020" : "#160000");
+      if (lightRefs.current[1]) lightRefs.current[1].color.set(flashRed ? "#0a1030" : "#2040ff");
     }
 
     body.setNextKinematicTranslation({ x, y: RIDE_HEIGHT, z });
@@ -292,14 +375,31 @@ function TrafficCar({ lane, seed, index }: { lane: Lane; seed: number; index: nu
     slot.h = heading; // lib/steal.ts hands this straight to the vehicle you take over
   });
 
+  const [bw, bh, bl] = colliderBoxFor(lane);
+
   return (
     <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={[0, RIDE_HEIGHT, 0]}>
+      {/* the actual collider — root-cause fix, see colliderBoxFor's comment.
+          Dropped the same way Car.tsx/PoliceCar.tsx drop theirs, bottom face
+          on the tyre contact patch rather than the mesh origin. */}
+      <CuboidCollider args={[bw / 2, bh / 2, bl / 2]} position={[0, bh / 2 - RIDE_HEIGHT, 0]} />
       {/* detail="low" — a dozen NPC cars are never seen close enough for
           spokes/mirrors/occupants to be more than a pixel, and skipping them
           keeps the draw-call count from tripling as traffic density grew */}
       <group ref={meshRef}>
         {lane.police ? (
           <PoliceCarMesh lightRefs={lightRefs} detail="low" />
+        ) : lane.policeJeep ? (
+          // PoliceJeepMesh's own root sits AT ground level (unlike the
+          // SupercarBody-family meshes above, which assume their local
+          // origin is RIDE_HEIGHT above ground) — see components/PoliceJeep.tsx's
+          // own RIDE_HEIGHT=0 comment. This RigidBody is placed at world
+          // y=RIDE_HEIGHT like every other lane, so the mesh needs the
+          // opposite local shift to land back on the road instead of
+          // floating.
+          <group position={[0, -RIDE_HEIGHT, 0]}>
+            <PoliceJeepMesh lightRefs={lightRefs} />
+          </group>
         ) : lane.kind ? (
           <CommercialBody kind={lane.kind} color={lane.color} detail="low" />
         ) : (

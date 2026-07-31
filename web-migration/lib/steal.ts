@@ -38,7 +38,11 @@ export function stealTrafficAction(): boolean {
   if (best < 0) return false;
 
   const slot = trafficPositions[best];
-  const kind: VehicleKind = slot.police ? "policeCar" : "car";
+  // policeJeep/police win over kind (neither ever sets kind anyway);
+  // otherwise hand over the real jeep/bus/truck rig for a commercial lane,
+  // falling back to the sedan for a plain lane — was unconditionally "car",
+  // silently reskinning a stolen bus as a sedan.
+  const kind: VehicleKind = slot.policeJeep ? "policeJeep" : slot.police ? "policeCar" : slot.kind ?? "car";
 
   // seed the shared state first: setActive makes the vehicle read as the
   // player's position source that same frame, before its own useFrame has
@@ -50,8 +54,11 @@ export function stealTrafficAction(): boolean {
   worldState.pz = slot.z;
   worldState.heading = slot.h;
 
-  // the cruiser has its own fixed livery; only the sedan takes on NPC paint
-  hud.setStolenCar(slot.police ? null : { color: slot.color, style: slot.style });
+  // only the sedan takes on NPC paint via this path (StolenAwareCarMesh is
+  // the parked sedan's own mesh, always mounted regardless of active vehicle
+  // — setting it for a stolen jeep/bus/truck would repaint the sedan itself
+  // the next time the player looks at it)
+  hud.setStolenCar(kind === "car" ? { color: slot.color, style: slot.style } : null);
   hud.setActive(kind);
   // consumed next frame by whichever vehicle is now active (Car.tsx/PoliceCar.tsx
   // both poll this) — the same one-shot the club door uses

@@ -16,7 +16,9 @@ import { teleportRequest } from "@/lib/clubTeleport";
 import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
 import { SupercarBody, RIDE_HEIGHT, type Detail } from "@/components/SupercarBody";
+import { clampFromWater } from "@/lib/marina";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
+import type { VehicleKind } from "@/lib/hudStore";
 
 const GRAVITY_PULL = -12;
 
@@ -30,15 +32,20 @@ const GRAVITY_PULL = -12;
 // cars recruit (see Traffic.tsx), matching the original's
 // `player.veh.userData.siren.kind==='police'` implicit-siren design (no
 // separate siren toggle key, same as the original).
-export function PoliceCar() {
+//
+// Parameterized over `kind` (default "policeCar") so the two gate-guard
+// interceptors parked at the airport (lib/vehicleState.ts's policeCar2/
+// policeCar3 — they used to be inert decoration, components/Airport.tsx's
+// GateGuardPost) can reuse this exact rig instead of a third copy.
+export function PoliceCar({ kind = "policeCar" }: { kind?: VehicleKind } = {}) {
   const { world } = useRapier();
   const bodyRef = useRef<RapierRigidBody>(null);
   const colliderRef = useRef<RapierCollider>(null);
   const keys = useKeyboard();
   const { camera } = useThree();
 
-  const [save] = useState(() => loadSave()?.vehicles.policeCar ?? null);
-  const car = useRef<CarState>({ h: save?.h ?? vehicleState.policeCar.h, speed: 0, vLat: 0, steerAng: 0 });
+  const [save] = useState(() => loadSave()?.vehicles[kind] ?? null);
+  const car = useRef<CarState>({ h: save?.h ?? vehicleState[kind].h, speed: 0, vLat: 0, steerAng: 0 });
   const fallSpeed = useRef(0);
   const crashCooldown = useRef(0);
   const camPos = useRef(new THREE.Vector3(0, 4, -10));
@@ -67,7 +74,7 @@ export function PoliceCar() {
     const collider = colliderRef.current;
     if (!body || !controller || !collider) return;
     const d = Math.min(dt, 0.05);
-    const isActive = useHudStore.getState().active === "policeCar";
+    const isActive = useHudStore.getState().active === kind;
 
     if (isActive && teleportRequest.pending) {
       teleportRequest.pending = false;
@@ -100,6 +107,8 @@ export function PoliceCar() {
 
     const t = body.translation();
     const nextPos = { x: t.x + movement.x, y: t.y + movement.y, z: t.z + movement.z };
+    // hard backstop, independent of the WATER_BOUNDARY collider — see Car.tsx/lib/marina.ts
+    clampFromWater(nextPos);
 
     // Out-of-world recovery: if the ground was not streamed in yet and the body
     // stepped through the gap, put it back on the surface here rather than let
@@ -121,11 +130,11 @@ export function PoliceCar() {
       if (hitSlow !== null) car.current.speed *= hitSlow;
     }
 
-    vehicleState.policeCar.x = nextPos.x;
-    vehicleState.policeCar.z = nextPos.z;
-    vehicleState.policeCar.h = car.current.h;
-    vehicleState.policeCar.speed = car.current.speed;
-    vehicleState.policeCar.vLat = car.current.vLat;
+    vehicleState[kind].x = nextPos.x;
+    vehicleState[kind].z = nextPos.z;
+    vehicleState[kind].h = car.current.h;
+    vehicleState[kind].speed = car.current.speed;
+    vehicleState[kind].vLat = car.current.vLat;
 
     // light bar always flashes, active or parked — police cars look "on duty" whether driven or not
     const flashRed = Math.floor(state.clock.elapsedTime * 5) % 2 === 0;
@@ -160,7 +169,7 @@ export function PoliceCar() {
       ref={bodyRef}
       type="kinematicPosition"
       colliders={false}
-      position={[save?.x ?? vehicleState.policeCar.x, RIDE_HEIGHT, save?.z ?? vehicleState.policeCar.z]}
+      position={[save?.x ?? vehicleState[kind].x, RIDE_HEIGHT, save?.z ?? vehicleState[kind].z]}
     >
       {/* Same drop as Car.tsx — collider bottom on the tyre contact patch, not
           on the mesh origin, or snapToGround buries the cruiser 0.305m. */}

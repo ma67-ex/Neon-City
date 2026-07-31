@@ -9,6 +9,13 @@ import * as THREE from "three";
 export const weatherCoatUniforms = {
   uSnowAmount: { value: 0 },
   uWetAmount: { value: 0 },
+  // sunny weather's "everything shines" ask, the part scene.environment
+  // alone doesn't cover: metal/glass already reflects the sky once
+  // Weather.tsx sets scene.environment, but painted/plastic/asphalt surfaces
+  // have no reflectivity to speak of — this gives every upward-facing
+  // surface a modest gloss boost so sunlight visibly glints off car roofs,
+  // road paint, rooftops, same masked-to-upward-faces trick as wet/snow.
+  uSunnyAmount: { value: 0 },
 };
 
 const TAG = "weatherCoated";
@@ -39,6 +46,7 @@ export function coatMaterial(material: THREE.Material): void {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uSnowAmount = weatherCoatUniforms.uSnowAmount;
     shader.uniforms.uWetAmount = weatherCoatUniforms.uWetAmount;
+    shader.uniforms.uSunnyAmount = weatherCoatUniforms.uSunnyAmount;
 
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying float vUpFacing;")
@@ -47,7 +55,7 @@ export function coatMaterial(material: THREE.Material): void {
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        "#include <common>\nvarying float vUpFacing;\nuniform float uSnowAmount;\nuniform float uWetAmount;"
+        "#include <common>\nvarying float vUpFacing;\nuniform float uSnowAmount;\nuniform float uWetAmount;\nuniform float uSunnyAmount;"
       )
       .replace(
         "#include <color_fragment>",
@@ -69,6 +77,20 @@ export function coatMaterial(material: THREE.Material): void {
           float upMask = smoothstep(0.35, 0.75, vUpFacing);
           roughnessFactor = mix(roughnessFactor, 0.02, upMask * uWetAmount);
           roughnessFactor = mix(roughnessFactor, 0.85, upMask * uSnowAmount);
+          // gentler than the wet-road mix above — a sunlit gloss, not a
+          // rain-slick mirror finish
+          roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.55, upMask * uSunnyAmount);
+        }`
+      )
+      .replace(
+        "#include <metalnessmap_fragment>",
+        `#include <metalnessmap_fragment>
+        {
+          // a small metalness bump so the lowered roughness above actually
+          // reads as a specular sun-glint (IBL response from scene.environment
+          // scales with metalness) instead of just a flatter diffuse surface
+          float upMask = smoothstep(0.35, 0.75, vUpFacing);
+          metalnessFactor = mix(metalnessFactor, min(1.0, metalnessFactor + 0.25), upMask * uSunnyAmount);
         }`
       );
   };

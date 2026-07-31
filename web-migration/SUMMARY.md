@@ -1432,6 +1432,163 @@ px/pz/heading write). `lib/player.ts`'s mount scan now compares
 
 All three: `tsc --noEmit` and `eslint` clean, `next build` green.
 
+## Milestone 22 — commercial vehicles, water-boundary hardening, airport relocation + patrols, the debris system, VENU redesign, sunny weather (2026-07-31)
+
+**Goal:** A long user-driven session mixing reported bugs (tyres floating
+exposed, cars driving into the sea, traffic ghosting through pedestrians,
+gate-guard vehicles being pure decoration) with requested features
+(steal-and-drive commercial traffic, a marina boat lot, moving the airport
+away from VENU, a premium VENU exterior, sunny weather with real
+reflections).
+
+**Tyres no longer float exposed below the body.** `SupercarBody.tsx`'s and
+`CommercialBody.tsx`'s fender flares only ever covered the top third of each
+wheel — the rocker skirt ran *between* the wheels, not over them, so the
+lower two-thirds of every tyre had no bracketing geometry at all and read as
+detached, hanging in front of the car. Added wheel-arch liner panels per
+corner (`SupercarBody.tsx`) and a shared `WheelArch` helper
+(`CommercialBody.tsx`, scaled off each wheel's own radius so it fits the
+jeep/bus/truck's very different tyre sizes).
+
+**Nitro locks out on empty until fully recharged.** `Car.tsx`'s
+`nitroLocked` ref: hitting 0 sets a locked flag that only clears once fuel
+is back at `NITRO_MAX`, so tapping SHIFT on a half-full tank right after
+running dry no longer restarts the boost.
+
+**A real boat lot at EAST MARINA.** `Boat.tsx` generalized to take
+`kind`/`spawn` props; two more moored hulls (`boat2` "HARBOR SKIFF", `boat3`
+"MARINA CRUISER") sit alongside the original. `lib/boatSwap.ts`'s
+swap-while-driving logic — previously hardcoded to "the one other boat" —
+now does a nearest-of-`BOAT_KINDS` scan since there are 4 hulls, not 2.
+
+**Traffic finally has real colliders — the actual "drove right through a
+commercial car" bug.** `Traffic.tsx`'s `TrafficCar` `RigidBody` had
+`colliders={false}` and never added a real `CuboidCollider` at all, for
+every lane including plain sedans. Added a per-kind collider
+(`colliderBoxFor`) plus a length-scaled `STOP_DISTANCE` so a bus/truck
+doesn't visually clip through whatever it's braking for.
+
+**Jeep/bus/truck are real driveable vehicles, not sedan reskins.**
+`lib/steal.ts` unconditionally mapped every non-police lane to `"car"` —
+stealing a bus silently handed you a repainted sedan. New
+`components/CommercialVehicle.tsx` (the `Car.tsx`/`PoliceCar.tsx` drive-rig
+pattern, generalized over `kind`) plus per-kind handling presets
+(`JEEP_HANDLING`/`BUS_HANDLING`/`TRUCK_HANDLING` in `lib/carPhysics.ts`),
+amber mirror-mounted beacons on `CommercialBody.tsx`, and per-kind
+cockpit-camera offsets (`lib/cameraRig.ts`'s new optional
+`cockpitEyeHeight`/`cockpitForward` params, defaults unchanged for every
+existing caller).
+
+**Water boundary: root cause, then a hard backstop.** The marina's
+pier-gap collider reused `VEHICLE_ONLY` — a tag specifically designed to
+let the *player's own* vehicle pass through it (that's the exact mechanism
+that lets the car through the airport gate while blocking traffic/police) —
+so it was never actually going to stop a player-driven car reaching the sea
+through that one gap. Added a second group,
+`VEHICLE_BODY_GROUPS`/`WATER_BOUNDARY` (`lib/collisionGroups.ts`), that
+blocks every player-driven land vehicle while staying invisible to the
+on-foot player. Live nitro-speed testing then found the character
+controller's own slide-along-a-wall sweep can still be beaten by a hard
+enough, fast enough hit — so also added `lib/marina.ts`'s
+`clampFromWater()`, a plain numeric position clamp applied every frame in
+`Car.tsx`/`Bike.tsx`/`PoliceCar.tsx`/`CommercialVehicle.tsx` right after
+physics has already moved the vehicle, as a collider-independent guarantee
+that can't be defeated by any sweep/CCD edge case.
+
+**Airport moved 450m west.** It read as sitting right next to VENU. `AX`/`AZ`
+in `Airport.tsx` are the single anchor the whole structure hangs off (one
+`<group position={[AX,0,AZ]}>` wrapper), but three *other* files
+independently hardcoded the same `-300/100` pair instead of importing it:
+`City.tsx`'s `AIRPORT_CENTER_CHUNK` (the building-exclusion carve-out),
+`lib/landmarks.ts`'s map entry, `lib/vehicleState.ts`'s
+plane/helicopter/policeJet/airliner1-3/airlinerCargo spawn points, and
+`components/Traffic.tsx`'s `AIRPORT_MIN` clamp + perimeter-patrol lane
+bounds. All four translated by the same delta.
+
+**The airport's 3 gate-guard vehicles patrol instead of sitting still.**
+They started as pure decoration (`PoliceJeepMesh`/`PoliceCarMesh` rendered
+as bare meshes, "no physics rig" by original design). First pass made them
+real parked/driveable vehicles (new `components/PoliceJeep.tsx`,
+`PoliceCar.tsx` generalized with a `kind` prop); on the user's follow-up ask
+they were upgraded again into 3 real `Traffic.tsx` patrol lanes (2
+interceptor, 1 security jeep) confined inside the fence, steal-able exactly
+like any other police lane — the static parked-only versions were removed
+once the lanes made them redundant. The 2 interceptor lanes share the
+existing single `"policeCar"` identity (same as every other police lane in
+the game); the jeep gets its own `"policeJeep"` identity since it's a
+visually distinct body.
+
+**Traffic no longer ghosts through pedestrians — and crash debris is
+actually visible for the first time.** Two separate, related gaps found
+while chasing the user's "why are these cars able to drive past the
+humans" report: (1) `Pedestrians.tsx`'s ragdoll/hit-test only ever checked
+the *player's own driven vehicle* (and its `LAND_VEHICLES` set was still
+missing `jeep`/`bus`/`truck`/`policeJeep` entirely) — AI traffic never
+looked at pedestrian positions at all. Added
+`components/Pedestrians.tsx`'s `pedestrianPositions` (a live per-pedestrian
+position array, same shared-singleton pattern as `vehicleState`), consumed
+by `Traffic.tsx`'s `laneBlocked()` alongside real vehicles, so a lane car
+now brakes for someone standing in the road. (2) `lib/debris.ts`'s
+`spawnDebris()`/`checkCrashDebris()` have been called since early
+milestones with nothing ever draining `debrisQueue` —
+`components/Debris.tsx`, referenced in that file's own comments, never
+actually existed. Built it: a pooled, manually-integrated fragment burst
+(same idiom as `NitroFX.tsx`'s puffs / `Pedestrians.tsx`'s ragdoll, not real
+Rapier bodies), mounted in `Game.tsx`. `Traffic.tsx` also now fires a burst
+itself on the rising edge of `laneBlocked` (any lane car braking hard for an
+obstacle), which is what makes the airport's new police patrols show a
+visible collision effect.
+
+**VENU rebuilt as a premium-club exterior.** Was a plain neon box. Now: the
+building grew wider and deeper (front face pinned at the same world z the
+door/hint distance checks in `lib/club.ts` already assume, so nothing about
+entering/exiting VENU had to change), an asymmetric folded-shard black
+roofline over the entrance with a backlit vertical-wood-slat soffit texture
+(canvas-baked, tiled) and a brushed-panel noise texture on the black facade,
+full glass frontage with mullions and a warm interior glow, front steps,
+potted plants, two bouncers (`PersonFigure` reused statically), a red
+carpet with velvet-rope stanchions, and a marked parking lot.
+
+**Sunny weather.** New `WEATHER` kind alongside clear/overcast/rain/fog/snow.
+A visible sun disc (a glow sprite fixed at the same angle as `SkyCycle.tsx`'s
+directional light, so it doesn't visually disagree with where the light
+actually comes from), a real specular-reflection environment map
+(`lib/skyEnv.ts`, `PMREMGenerator`-baked once and set as `scene.environment`,
+faded via `scene.environmentIntensity`) so car mirrors/glass/water genuinely
+reflect the sky, a sunny pass on the existing weather-coat shader
+(`lib/weatherCoat.ts`'s `uSunnyAmount` — lower roughness plus a metalness
+bump on upward faces, same masked-to-upward-faces trick the wet/snow passes
+already use) for a general sunlit glint on paint/road/rooftops, and a
+boosted, warmed version of the actual sun light itself.
+
+Verified live in-browser for every piece in this milestone (tyre arches,
+nitro lockout, boat lot, traffic collider stop, jeep/bus/truck steal-and-
+drive, the water boundary at both normal and nitro speed — including the
+nitro-speed exploit that forced the `clampFromWater` backstop — airport
+relocation (and the stale-localStorage-save gotcha that made the first
+check look broken), gate-vehicle patrol + steal, a debris burst on a wall
+ram, the new VENU frontage, sunny weather cycling); `tsc --noEmit` clean
+throughout.
+
+**Files added:** `components/CommercialVehicle.tsx`, `components/PoliceJeep.tsx`,
+`components/Debris.tsx`, `lib/skyEnv.ts`.
+**Files substantially rewritten:** `components/Club.tsx` (full exterior),
+`components/Weather.tsx` (sunny pass), `lib/collisionGroups.ts` (new
+groups), `lib/marina.ts` (`clampFromWater`).
+**Files changed:** `components/Airport.tsx` (`AX`/`AZ`, `GateGuardPost`
+removed), `components/Bike.tsx`/`Car.tsx`/`PoliceCar.tsx`
+(`VEHICLE_BODY_GROUPS`, `clampFromWater`), `components/Boat.tsx`
+(`kind`/`spawn` props), `components/City.tsx` (`AIRPORT_CENTER_CHUNK`),
+`components/CommercialBody.tsx` (`WheelArch`, mirror beacons),
+`components/Game.tsx` (new mounts), `components/ParkedPoliceJeep.tsx`
+(`lightRefs` prop), `components/Pedestrians.tsx` (`pedestrianPositions`,
+`LAND_VEHICLES`), `components/SupercarBody.tsx` (wheel arches),
+`components/Traffic.tsx` (colliders, pedestrian obstacles, debris, 3 new
+patrol lanes), `lib/boatSwap.ts`, `lib/cameraRig.ts` (cockpit offset
+params), `lib/carPhysics.ts` (3 new handling presets), `lib/hudStore.ts`
+(new `VehicleKind`s), `lib/landmarks.ts`, `lib/steal.ts` (kind-aware
+mapping), `lib/vehicleState.ts`, `lib/weatherCoat.ts`, `lib/weatherState.ts`.
+
 ## Next up
 
 World-scale, physics, maps, building variety, and city texture/detail
@@ -1439,9 +1596,11 @@ World-scale, physics, maps, building variety, and city texture/detail
 in Milestones 1-13; Milestone 18 layers weather, nitro FX, commercial
 traffic, and a flyable airport on top of that; Milestone 19 adds a security
 perimeter; Milestone 20 rebuilds the airport at real scale with drivable
-wide-bodies and fixes the three real access/population bugs the user found
-by actually playing it; Milestone 21 closes three of Milestone 20's smaller
-named gaps. Remaining, roughly by size:
+wide-bodies; Milestone 21 closes three of Milestone 20's smaller named gaps;
+Milestone 22 is a large user-driven bugfix/feature session covering
+commercial-vehicle drivability, the water boundary, the airport's location
+and its gate vehicles, the (previously nonexistent) debris renderer, VENU's
+exterior, and sunny weather. Remaining, roughly by size:
 **a draw-call/perf pass on the airport specifically** — named honestly as
 not done in Milestone 20 (segment-count reduction + `InstancedMesh` for
 engine fan blades, runway/taxiway/approach lights, and cargo containers;
@@ -1452,14 +1611,24 @@ feel right, same as `PLANE_HANDLING`/`HELI_HANDLING` still need per
 Milestone 18's own note; **fly the small plane/helicopter and drive through
 weather at least once in a real browser** to confirm the liftoff behaviour
 and handling constants feel right; **verify Milestone 13's ragdoll hit-test
-live** (carried over, still unconfirmed); the club interior's own
-deliberate simplifications (Milestone 9); the felony-stop convoy maneuver
-named and skipped in Milestone 11; a perf pass on the rest of the city now
-that Milestones 16-18 add meaningfully more meshes per chunk/landmark
-(towers/apartments/townhouses/graffiti/commercial-vehicle bodies each render
-several sub-meshes); the garage bay's side walls/roof have no collider by
-design (visual only, so pulling in never gets stuck) — worth a follow-up
-pass if a player manages to clip through a side wall at speed;
-`laneBlocked()` only checks the 3 land vehicles, not other traffic cars
-against each other; and the still-unconfirmed `dpr={1}`/`EffectComposer`
-render artifact from Milestone 13, still worth a real-hardware check.
+live** (carried over, still unconfirmed); the club interior
+(`ClubInterior.tsx`) was not touched to match Milestone 22's new premium
+exterior — still the earlier interior build; the felony-stop convoy
+maneuver named and skipped in Milestone 11; a perf pass on the rest of the
+city now that Milestones 16-18 add meaningfully more meshes per
+chunk/landmark; the garage bay's side walls/roof have no collider by design
+(visual only, so pulling in never gets stuck) — worth a follow-up pass if a
+player manages to clip through a side wall at speed; the still-unconfirmed
+`dpr={1}`/`EffectComposer` render artifact from Milestone 13, still worth a
+real-hardware check; **from Milestone 22 specifically:** `laneBlocked()`
+still only checks real vehicles + pedestrians, not other traffic lanes
+against each other (AI-vs-AI collision); `PoliceCar.tsx`'s own drive rig
+still doesn't pass a `VEHICLE_BODY_GROUPS`-equivalent filter on its sweep,
+so (unlike `Car.tsx`/`Bike.tsx`/`CommercialVehicle.tsx`) it still gets stuck
+on `VEHICLE_ONLY` curbs/gates — flagged, not fixed, this session; a stolen
+jeep/bus/truck keeps its default parked livery colour rather than picking
+up the NPC lane's paint (`lib/steal.ts` only fixed the *kind* mapping — a
+`stolenCommercial` field shaped like the existing `stolenCar` one would fix
+this); the new VENU parking lot has marked bays but no actual parked-car
+meshes; lens-flare streaks / puddle-style ground reflections for sunny
+weather were discussed but not built.

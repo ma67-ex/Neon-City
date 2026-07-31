@@ -3,7 +3,7 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RigidBody, CuboidCollider, useRapier, type RapierRigidBody, type RapierCollider } from "@react-three/rapier";
-import { PLAYER_GROUPS } from "@/lib/collisionGroups";
+import { VEHICLE_BODY_GROUPS } from "@/lib/collisionGroups";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, BIKE_HANDLING, type CarState } from "@/lib/carPhysics";
@@ -16,7 +16,7 @@ import { applyCameraRig } from "@/lib/cameraRig";
 import { teleportRequest } from "@/lib/clubTeleport";
 import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
-import { SHORE_X, DROWN_RESPAWN } from "@/lib/marina";
+import { SHORE_X, DROWN_RESPAWN, clampFromWater } from "@/lib/marina";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
 const GRAVITY_PULL = -12;
@@ -100,17 +100,21 @@ export function Bike() {
     fallSpeed.current += GRAVITY_PULL * d;
     // see Car.tsx: EXCLUDE_DYNAMIC lets the bike plow through props instead of
     // sliding/stopping on them, while the solver still shoves the prop aside.
-    // filterGroups=PLAYER_GROUPS on the sweep itself — see Player.tsx's
+    // filterGroups=VEHICLE_BODY_GROUPS on the sweep itself — see Player.tsx's
     // computeColliderMovement for why the collider's own collisionGroups tag
     // alone doesn't make this query skip VEHICLE_ONLY colliders (airport
-    // gate gap, Airport.tsx).
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, PLAYER_GROUPS);
+    // gate gap, Airport.tsx). The extra vehicle-body bit (vs. plain
+    // PLAYER_GROUPS) is what WATER_BOUNDARY (Marina.tsx) keys off to stop the
+    // bike at the water's edge without also blocking the on-foot player.
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, VEHICLE_BODY_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
 
     const t = body.translation();
     const nextPos = { x: t.x + movement.x, y: t.y + movement.y, z: t.z + movement.z };
+    // hard backstop, independent of the WATER_BOUNDARY collider — see Car.tsx/lib/marina.ts
+    clampFromWater(nextPos);
 
     // drowning safety net — see Car.tsx for why this is unreachable in normal
     // play but still worth a respawn instead of falling forever
@@ -197,9 +201,10 @@ export function Bike() {
 
   return (
     <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={[save?.x ?? -20, 1, save?.z ?? 0]}>
-      {/* PLAYER_GROUPS so the player's bike passes VEHICLE_ONLY colliders
-          (airport gate gap, Airport.tsx) like Car.tsx and Player.tsx do. */}
-      <CuboidCollider ref={colliderRef} args={[bikeBox.x / 2, bikeBox.y / 2, bikeBox.z / 2]} collisionGroups={PLAYER_GROUPS} />
+      {/* VEHICLE_BODY_GROUPS so the player's bike passes VEHICLE_ONLY colliders
+          (airport gate gap, Airport.tsx) like Car.tsx and Player.tsx do, but
+          still gets stopped by WATER_BOUNDARY (Marina.tsx) at the water's edge. */}
+      <CuboidCollider ref={colliderRef} args={[bikeBox.x / 2, bikeBox.y / 2, bikeBox.z / 2]} collisionGroups={VEHICLE_BODY_GROUPS} />
       <BikeMesh />
       <group ref={riderRef}>
         <BikeRider />

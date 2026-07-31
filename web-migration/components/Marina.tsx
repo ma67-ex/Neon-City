@@ -2,7 +2,7 @@
 
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import { LAND_EDGE_X, PIER_LEN, PIER_Z } from "@/lib/marina";
-import { VEHICLE_ONLY } from "@/lib/collisionGroups";
+import { WATER_BOUNDARY } from "@/lib/collisionGroups";
 
 // EAST MARINA dock — ported from the original's shore/pier block (index.html
 // ~line 4493-4523: kerb, bollards, deck, pilings, lamp). The deck gets a real
@@ -45,9 +45,15 @@ export function Marina() {
       <RigidBody type="fixed" colliders={false}>
         <CuboidCollider args={[2.0, 0.6, 50000]} position={[LAND_EDGE_X - 1, 0.6, PIER_Z - 4.5 - 50000]} />
         <CuboidCollider args={[2.0, 0.6, 50000]} position={[LAND_EDGE_X - 1, 0.6, PIER_Z + 4.5 + 50000]} />
-        {/* closes the pier gap for cars/bikes only — the player still walks
-            through here to reach the dock and board the boat */}
-        <CuboidCollider args={[2.0, 0.6, 4.5]} position={[LAND_EDGE_X - 1, 0.6, PIER_Z]} collisionGroups={VEHICLE_ONLY} />
+        {/* closes the pier gap for every player-driven vehicle (car/bike/jeep/
+            bus/truck — see lib/collisionGroups.ts's VEHICLE_BODY_GROUPS) while
+            staying invisible to the on-foot player, who still walks through
+            here to reach the dock and board a boat. WATER_BOUNDARY, not
+            VEHICLE_ONLY: that tag is deliberately see-through to the
+            player's OWN vehicle (it's what lets your car pass the airport
+            gate) — reusing it here was the actual hole that let a driven car
+            reach open water through this exact gap. */}
+        <CuboidCollider args={[2.0, 0.6, 4.5]} position={[LAND_EDGE_X - 1, 0.6, PIER_Z]} collisionGroups={WATER_BOUNDARY} />
       </RigidBody>
       <mesh position={[LAND_EDGE_X + PIER_LEN / 2, 0.5, PIER_Z]} receiveShadow castShadow>
         <boxGeometry args={[PIER_LEN, 0.4, 9]} />

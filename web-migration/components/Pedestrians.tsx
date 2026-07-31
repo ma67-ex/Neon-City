@@ -35,7 +35,9 @@ const FLEE_RADIUS2 = 8 * 8; // original's exact "car is close" radius
 const FLEE_SPEED_MS = 8; // original's exact "car is fast" threshold (m/s)
 const HIT_SPEED_MS = 2.5; // original's exact minimum speed to register a hit
 const HIT_RADIUS2 = 8 * 8; // original's cheap far-reject before the oriented-box test
-const LAND_VEHICLES = new Set(["car", "bike", "policeCar"]);
+// every player-drivable land vehicle — was missing jeep/bus/truck/policeJeep
+// entirely, so running a pedestrian over in one of those silently no-opped
+const LAND_VEHICLES = new Set(["car", "bike", "policeCar", "jeep", "bus", "truck", "policeJeep"]);
 
 const SKINS = ["#d9a066", "#8a5a2b", "#f0c8a0", "#6b4423", "#c79a6b", "#a06a3a"];
 const SHIRTS = ["#c84f4f", "#4f7ac8", "#4fc87a", "#c8b44f", "#9a4fc8", "#e8e8e8", "#2a2e38", "#d98a3a", "#2f8a6a"];
@@ -115,6 +117,13 @@ const PED_SPECS: PedSpec[] = [
   ...Array.from({ length: OFFICER_COUNT }, () => makeSpec(true)),
 ];
 
+// Live world position per pedestrian — same shared-mutable-singleton pattern
+// as vehicleState/trafficPositions. Read by components/Traffic.tsx's
+// laneBlocked() so AI traffic actually brakes for someone standing in the
+// road instead of clipping straight through them (that hit-test above only
+// ever covered the PLAYER's own driven vehicle, never scripted lane cars).
+export const pedestrianPositions: { x: number; z: number }[] = PED_SPECS.map(() => ({ x: 0, z: 0 }));
+
 // Walks the 72m perimeter of a block centred at (cx,cz) — ported verbatim
 // from the original's pedPos(): four straight sides, s wraps mod 288.
 function pedPos(cx: number, cz: number, s: number): [number, number, number, number] {
@@ -127,7 +136,7 @@ function pedPos(cx: number, cz: number, s: number): [number, number, number, num
   return [cx - HALF_SIDE, cz + HALF_SIDE - u, 0, -1];
 }
 
-function Ped({ spec }: { spec: PedSpec }) {
+function Ped({ spec, index }: { spec: PedSpec; index: number }) {
   const group = useRef<THREE.Group>(null);
   const legL = useRef<THREE.Mesh>(null);
   const legR = useRef<THREE.Mesh>(null);
@@ -147,6 +156,10 @@ function Ped({ spec }: { spec: PedSpec }) {
     if (!g) return;
     const d = Math.min(dt, 0.05);
     const ps = st.current;
+    // one-frame-stale is fine for a coarse "is anyone standing here" obstacle
+    // check — written before this frame's own movement below
+    pedestrianPositions[index].x = g.position.x;
+    pedestrianPositions[index].z = g.position.z;
 
     // ----- ragdoll: tumble, bounce off the tarmac, settle, then rejoin -----
     if (ps.rag) {
@@ -282,7 +295,7 @@ export function Pedestrians() {
   return (
     <>
       {PED_SPECS.map((spec, i) => (
-        <Ped key={i} spec={spec} />
+        <Ped key={i} spec={spec} index={i} />
       ))}
     </>
   );

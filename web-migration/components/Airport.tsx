@@ -5,9 +5,6 @@ import { useFrame } from "@react-three/fiber";
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { PoliceCarMesh } from "@/components/PoliceCar";
-import { PoliceJeepMesh } from "@/components/ParkedPoliceJeep";
-import { RIDE_HEIGHT } from "@/components/SupercarBody";
 import { HeliMesh } from "@/components/Helicopter";
 import { LIVERIES } from "@/components/Airliner";
 import { BrokenJet, WorkVehicle, MovingAirliner, circuitKeys, taxiKeys, WorkVehicleMesh, type Key } from "@/components/AirportLife";
@@ -16,8 +13,11 @@ import { VEHICLE_ONLY } from "@/lib/collisionGroups";
 
 // INTERNATIONAL AIRPORT — the map's biggest landmark by a wide margin: a
 // 480x480m walled airfield (see components/City.tsx's AIRPORT_CHUNKS, which
-// clears the whole 5x5 chunk block around centre chunk (-3,1) / world
-// (-300,100), and lib/landmarks.ts's entry).
+// clears the whole 5x5 chunk block around centre chunk (-8,1) / world
+// (-750,100), and lib/landmarks.ts's entry). Moved 450m further west (was
+// -300) so it reads as a proper cross-town trip from VENU instead of "right
+// next door" — see lib/vehicleState.ts and components/Traffic.tsx for the
+// other airport-relative coordinates that had to move by the same amount.
 //
 // Same idiom as components/MizuRestaurant.tsx: module-scope shared materials,
 // one <group position={[AX,0,AZ]}> wrapper so every constant below is
@@ -37,7 +37,7 @@ import { VEHICLE_ONLY } from "@/lib/collisionGroups";
 //
 // The player's own flyable aircraft (components/Plane.tsx, Helicopter.tsx) are
 // siblings in Game.tsx and park on this field via lib/vehicleState.ts.
-const AX = -300;
+const AX = -750;
 const AZ = 100;
 
 // ---------------------------------------------------------- materials ------
@@ -805,25 +805,12 @@ function Gate() {
   );
 }
 
-function GateGuardPost() {
-  const lightRefsA = useRef<(THREE.MeshBasicMaterial | null)[]>([null, null]);
-  const lightRefsB = useRef<(THREE.MeshBasicMaterial | null)[]>([null, null]);
-  return (
-    <group>
-      {/* posted just inside the gate, flanking the pedestrian entrance so
-          they don't stand in it (GATE_CZ centre kept clear) */}
-      <group position={[GATE_POST_X, RIDE_HEIGHT, GATE_CZ - 20]} rotation={[0, Math.PI / 2, 0]}>
-        <PoliceCarMesh lightRefs={lightRefsA} detail="low" />
-      </group>
-      <group position={[GATE_POST_X, 0, GATE_CZ + 20]} rotation={[0, Math.PI / 2, 0]}>
-        <PoliceJeepMesh />
-      </group>
-      <group position={[GATE_POST_X, RIDE_HEIGHT, GATE_CZ + 34]} rotation={[0, Math.PI / 2, 0]}>
-        <PoliceCarMesh lightRefs={lightRefsB} detail="low" />
-      </group>
-    </group>
-  );
-}
+// The three gate-guard vehicles that used to be rendered here as inert
+// decoration (two PoliceCarMesh interceptors + one PoliceJeepMesh) are now
+// real drivable vehicles instead — components/PoliceCar.tsx (kind=
+// "policeCar2"/"policeCar3") and components/PoliceJeep.tsx, mounted as
+// siblings in Game.tsx and parked at these exact same GATE_POST_X/GATE_CZ
+// positions (see lib/vehicleState.ts). Nothing left to render here.
 
 // Ground equipment at a gate stand — stairs, a baggage train, a fuel bowser,
 // a pushback tractor. The airliner itself is NOT rendered here: it's a
@@ -1071,7 +1058,6 @@ export function Airport() {
 
       <PerimeterFence />
       <Gate />
-      <GateGuardPost />
     </group>
   );
 }

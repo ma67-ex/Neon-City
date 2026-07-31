@@ -6,7 +6,7 @@ import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, BOAT_HANDLING, type CarState } from "@/lib/carPhysics";
-import { useHudStore } from "@/lib/hudStore";
+import { useHudStore, type VehicleKind } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
@@ -22,7 +22,19 @@ import { BoatMirrors } from "@/components/BoatMirrors";
 // directly, plus a sine bob for the "floating" feel. It's still a Rapier
 // kinematic RigidBody (not a bare mesh) so it's ready to collide with a dock
 // or another boat once that's ported — see SUMMARY.md, Next up.
-export function Boat() {
+//
+// Parameterized over `kind`/`spawn` so Game.tsx can mount three of these (the
+// original single sea sprite plus two more moored at EAST MARINA's dock,
+// lib/vehicleState.ts's boat2/boat3) instead of duplicating this whole file —
+// a "boat lot" you can walk down and pick a hull from, not just one boat out
+// at sea. Defaults match the original single-boat spawn exactly.
+export function Boat({
+  kind = "boat",
+  spawn = { x: 595, z: 0, h: Math.PI },
+}: {
+  kind?: VehicleKind;
+  spawn?: { x: number; z: number; h: number };
+} = {}) {
   const bodyRef = useRef<RapierRigidBody>(null);
   const keys = useKeyboard();
   const { camera } = useThree();
@@ -32,11 +44,11 @@ export function Boat() {
   // right at the player's spawn — reject it and fall back to the dock instead
   // of trusting it blindly, same call the drowning respawn below makes.
   const [save] = useState(() => {
-    const s = loadSave()?.vehicles.boat ?? null;
+    const s = loadSave()?.vehicles[kind] ?? null;
     return s && s.x >= LAND_EDGE_X ? s : null;
   });
-  const boat = useRef<CarState>({ h: save?.h ?? Math.PI, speed: 0, vLat: 0, steerAng: 0 });
-  const pos = useRef({ x: save?.x ?? 595, z: save?.z ?? 0 });
+  const boat = useRef<CarState>({ h: save?.h ?? spawn.h, speed: 0, vLat: 0, steerAng: 0 });
+  const pos = useRef({ x: save?.x ?? spawn.x, z: save?.z ?? spawn.z });
   const camPos = useRef(new THREE.Vector3(30, 5, -10));
   const camLook = useRef(new THREE.Vector3());
 
@@ -46,7 +58,7 @@ export function Boat() {
     const body = bodyRef.current;
     if (!body) return;
     const d = Math.min(dt, 0.05);
-    const isActive = useHudStore.getState().active === "boat";
+    const isActive = useHudStore.getState().active === kind;
 
     const k = keys.current;
     const steer = isActive ? (k.left ? 1 : 0) - (k.right ? 1 : 0) : 0;
@@ -82,11 +94,11 @@ export function Boat() {
       .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -heel));
     body.setNextKinematicRotation(q);
 
-    vehicleState.boat.x = pos.current.x;
-    vehicleState.boat.z = pos.current.z;
-    vehicleState.boat.h = boat.current.h;
-    vehicleState.boat.speed = boat.current.speed;
-    vehicleState.boat.vLat = boat.current.vLat;
+    vehicleState[kind].x = pos.current.x;
+    vehicleState[kind].z = pos.current.z;
+    vehicleState[kind].h = boat.current.h;
+    vehicleState[kind].speed = boat.current.speed;
+    vehicleState[kind].vLat = boat.current.vLat;
 
     if (!isActive) return;
     worldState.px = pos.current.x;
@@ -112,7 +124,7 @@ export function Boat() {
   });
 
   return (
-    <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={[save?.x ?? 595, WATER_LEVEL, save?.z ?? 0]}>
+    <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={[save?.x ?? spawn.x, WATER_LEVEL, save?.z ?? spawn.z]}>
       <mesh castShadow>
         <boxGeometry args={[hullSize.x, hullSize.y, hullSize.z]} />
         <meshStandardMaterial color="#e8e2d0" metalness={0.35} roughness={0.34} />

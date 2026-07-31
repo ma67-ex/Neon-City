@@ -9,6 +9,7 @@ import { weatherState, pickWeather } from "@/lib/weatherState";
 import { coatScene, weatherCoatUniforms } from "@/lib/weatherCoat";
 import { requestPlayerTeleport } from "@/lib/playerTeleport";
 import { vehicleState } from "@/lib/vehicleState";
+import { getSunnyEnvMap } from "@/lib/skyEnv";
 if (typeof window !== "undefined") {
   (window as unknown as { __ncdTp: typeof requestPlayerTeleport }).__ncdTp = requestPlayerTeleport;
   (window as unknown as { __ncdVeh: typeof vehicleState }).__ncdVeh = vehicleState;
@@ -89,10 +90,38 @@ const snowGeo = (() => {
 })();
 
 const cGrey = new THREE.Color(0x8a94a0);
+const cWarm = new THREE.Color(0xfff0c8);
 const tmpColor = new THREE.Color();
 
+// Same fixed direction as SkyCycle.tsx's sunRef position ([60,80,30],
+// normalized) — that light is the sun, so the visible disc has to sit in the
+// same spot in the sky or the two would visibly disagree about where the
+// light is coming from.
+const SUN_DIST = 300;
+const SUN_MAG = Math.hypot(60, 80, 30);
+const SUN_DIR = new THREE.Vector3(60 / SUN_MAG, 80 / SUN_MAG, 30 / SUN_MAG);
+
+// Bright core fading to a soft warm halo — additive + fog:false (see BEAM in
+// SupercarBody.tsx for the same "glow that ignores scene fog" idiom) so it
+// still reads as a glowing disc at 300 units out instead of fading to the
+// fog color like ordinary geometry would.
+const SUN_TEX = (() => {
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d")!;
+  const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, "rgba(255,255,255,1)");
+  r.addColorStop(0.25, "rgba(255,244,214,0.95)");
+  r.addColorStop(0.55, "rgba(255,214,140,0.35)");
+  r.addColorStop(1, "rgba(255,214,140,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+
 export function Weather() {
-  const { scene } = useThree();
+  const { scene, gl } = useThree();
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
   const snowPointsRef = useRef<THREE.Points>(null);
@@ -101,6 +130,9 @@ export function Weather() {
   // re-scan periodically (not once) so buildings/props/traffic streamed in
   // after mount (this is a chunk-streamed open world) still get coated
   const coatScanRef = useRef(0);
+  const sunGroupRef = useRef<THREE.Group>(null);
+  const sunCoreRef = useRef<THREE.Sprite>(null);
+  const sunHaloRef = useRef<THREE.Sprite>(null);
 
   // imperatively mutating scene.fog/background/hemi here every frame is the
   // documented R3F pattern (see SkyCycle.tsx's own useFrame, same rationale)
@@ -131,9 +163,10 @@ export function Weather() {
     const isFog = weatherState.kind === "fog";
     const isOver = weatherState.kind === "overcast";
     const isSnow = weatherState.kind === "snow";
+    const isSunny = weatherState.kind === "sunny";
 
-    const tgtNear = isFog ? 18 : isSnow ? 40 : isRain ? 55 : isOver ? 95 : 110;
-    const tgtFar = isFog ? 95 : isSnow ? 150 : isRain ? 210 : isOver ? 320 : 430;
+    const tgtNear = isFog ? 18 : isSnow ? 40 : isRain ? 55 : isOver ? 95 : isSunny ? 140 : 110;
+    const tgtFar = isFog ? 95 : isSnow ? 150 : isRain ? 210 : isOver ? 320 : isSunny ? 480 : 430;
     const fog = scene.fog as THREE.Fog;
     // eslint-disable-next-line react-hooks/immutability -- see note above useFrame
     fog.near = THREE.MathUtils.lerp(fog.near, tgtNear, Math.min(1, dt * 0.5));
@@ -150,6 +183,28 @@ export function Weather() {
       // the one hemisphere light is cheap and keeps the two files decoupled
       const hemi = scene.getObjectByProperty("type", "HemisphereLight") as THREE.HemisphereLight | undefined;
       if (hemi) hemi.intensity *= 1 - greyK * 0.35;
+    }
+    // sunny: a warm golden tint instead of grey, and the actual sun light/
+    // disc/reflections below — everything the user asked for ("shiny",
+    // "reflects on things", "reflects on mirrors")
+    if (isSunny) {
+      tmpColor.copy(fog.color).lerp(cWarm, 0.14);
+      fog.color.copy(tmpColor);
+      if (scene.background instanceof THREE.Color) scene.background.copy(tmpColor);
+      // the actual sun (SkyCycle.tsx's sunRef, distinguished from its fill
+      // light sibling by castShadow — getObjectByProperty can only match one
+      // property, so this needs a real traversal): brighter and warmer than
+      // a plain clear day
+      let sun: THREE.DirectionalLight | undefined;
+      scene.traverse((obj) => {
+        if (!sun && (obj as THREE.DirectionalLight).isDirectionalLight && (obj as THREE.DirectionalLight).castShadow) {
+          sun = obj as THREE.DirectionalLight;
+        }
+      });
+      if (sun) {
+        sun.intensity *= 1.35;
+        sun.color.lerp(new THREE.Color(0xfff2d0), 0.4);
+      }
     }
 
     const rainTarget = isRain ? 0.55 : 0;
@@ -205,15 +260,54 @@ export function Weather() {
       isRain ? 1 : 0,
       Math.min(1, dt * 0.3)
     );
+    weatherCoatUniforms.uSunnyAmount.value = THREE.MathUtils.lerp(
+      weatherCoatUniforms.uSunnyAmount.value,
+      isSunny ? 1 : 0,
+      Math.min(1, dt * 0.3)
+    );
     coatScanRef.current -= dt;
     if (coatScanRef.current <= 0) {
       coatScene(scene);
       coatScanRef.current = 2;
     }
+
+    // real specular reflections (car mirrors/windshields, the sea, chrome
+    // trim) via IBL — three.js samples scene.environment automatically on
+    // any metalness>0 material, nothing per-material to wire up. Baked once
+    // on the first sunny transition (needs a renderer), then just faded via
+    // environmentIntensity so it never has to regenerate.
+    const sunnyAmt = weatherCoatUniforms.uSunnyAmount.value;
+    if (isSunny && !scene.environment) {
+      // eslint-disable-next-line react-hooks/immutability -- see note above useFrame
+      scene.environment = getSunnyEnvMap(gl);
+    }
+    if (scene.environment) scene.environmentIntensity = sunnyAmt;
+
+    // the visible sun disc itself — parented to nothing, repositioned off
+    // the player each frame (same "follow px/pz, fixed sky offset" trick the
+    // rain/snow points above use), opacity following the same ramp so it
+    // fades in/out with everything else rather than popping.
+    if (sunGroupRef.current) {
+      sunGroupRef.current.position.set(
+        worldState.px + SUN_DIR.x * SUN_DIST,
+        SUN_DIR.y * SUN_DIST,
+        worldState.pz + SUN_DIR.z * SUN_DIST
+      );
+    }
+    if (sunCoreRef.current) (sunCoreRef.current.material as THREE.SpriteMaterial).opacity = sunnyAmt;
+    if (sunHaloRef.current) (sunHaloRef.current.material as THREE.SpriteMaterial).opacity = sunnyAmt * 0.8;
   });
 
   return (
     <>
+    <group ref={sunGroupRef}>
+      <sprite ref={sunHaloRef} scale={[55, 55, 1]}>
+        <spriteMaterial map={SUN_TEX ?? undefined} transparent opacity={0} depthWrite={false} fog={false} toneMapped={false} blending={THREE.AdditiveBlending} />
+      </sprite>
+      <sprite ref={sunCoreRef} scale={[18, 18, 1]}>
+        <spriteMaterial map={SUN_TEX ?? undefined} transparent opacity={0} depthWrite={false} fog={false} toneMapped={false} blending={THREE.AdditiveBlending} />
+      </sprite>
+    </group>
     <points ref={pointsRef} geometry={rainGeo}>
       <pointsMaterial
         ref={materialRef}

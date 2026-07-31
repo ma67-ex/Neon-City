@@ -49,3 +49,21 @@ export function pierPush(x: number, z: number, r: number): { x: number; z: numbe
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
+
+// Hard numeric backstop, independent of Rapier's WATER_BOUNDARY collider
+// (components/Marina.tsx, lib/collisionGroups.ts): at extreme speed (nitro,
+// 200+ km/h) the character controller's slide-along-a-wall iteration can
+// still let a kinematic sweep punch through a thin static collider in one
+// frame — confirmed by actually doing it. A collider is "should never let
+// you through"; this is "physically cannot end up on the other side" — it
+// mutates the vehicle's own next-position in place every frame, after
+// physics has already computed it, so no amount of collider-tunneling can
+// bypass it. Every land vehicle (Car/Bike/PoliceCar/CommercialVehicle) calls
+// this on its own `nextPos` right after computing it. `onPier` is generous
+// (the full pier footprint, not just the walkway sliver) so this never
+// fights the dock itself — it only ever clamps at the true coastline.
+export function clampFromWater(pos: { x: number; z: number }) {
+  const onPier = pos.z > PIER_Z - 4.5 && pos.z < PIER_Z + 4.5;
+  const maxX = onPier ? LAND_EDGE_X + PIER_LEN : LAND_EDGE_X;
+  if (pos.x > maxX) pos.x = maxX;
+}

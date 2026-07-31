@@ -21,6 +21,7 @@ import { Club } from "@/components/Club";
 import { ClubInterior } from "@/components/ClubInterior";
 import { AudioEngine } from "@/components/AudioEngine";
 import { NitroFX } from "@/components/NitroFX";
+import { Debris } from "@/components/Debris";
 import { WaypointTracker } from "@/components/WaypointTracker";
 import { HUD } from "@/components/HUD";
 import { useHudStore, LIGHT_MODES } from "@/lib/hudStore";
@@ -31,6 +32,7 @@ import { toggleVehicleFoot } from "@/lib/player";
 import { boatSwapAction } from "@/lib/boatSwap";
 import { stealTrafficAction } from "@/lib/steal";
 import { PoliceCar } from "@/components/PoliceCar";
+import { PoliceJeep } from "@/components/PoliceJeep";
 import { PatrolBoat } from "@/components/PatrolBoat";
 import { PoliceStation } from "@/components/PoliceStation";
 import { MizuRestaurant } from "@/components/MizuRestaurant";
@@ -40,6 +42,7 @@ import { Plane } from "@/components/Plane";
 import { Helicopter } from "@/components/Helicopter";
 import { PoliceJet } from "@/components/PoliceJet";
 import { DrivableAirliner } from "@/components/DrivableAirliner";
+import { CommercialVehicle } from "@/components/CommercialVehicle";
 import { LIVERIES } from "@/components/Airliner";
 import { Props } from "@/components/Props";
 import { Headlights } from "@/components/Headlights";
@@ -138,14 +141,23 @@ export default function Game() {
           <MouseLook />
           <AudioEngine />
           <NitroFX />
+          <Debris />
           <WaypointTracker />
           <Physics gravity={[0, -9.81, 0]}>
             <City />
             <Water />
             <Car />
             <Boat />
+            <Boat kind="boat2" spawn={{ x: 565, z: 40, h: Math.PI / 2 }} />
+            <Boat kind="boat3" spawn={{ x: 565, z: 62, h: Math.PI / 2 }} />
             <Bike />
             <PoliceCar />
+            {/* the airport's gate-guard jeep (components/Airport.tsx's old
+                GateGuardPost) — the two gate interceptors are now just more
+                police patrol lanes (components/Traffic.tsx) sharing this
+                same PoliceCar's "policeCar" identity like every other police
+                lane already does, so no separate owned copy is needed for them */}
+            <PoliceJeep />
             <PatrolBoat />
             <Plane />
             <Helicopter />
@@ -158,6 +170,11 @@ export default function Game() {
             <DrivableAirliner id="airliner2" liveryColor={LIVERIES[1]} />
             <DrivableAirliner id="airliner3" liveryColor={LIVERIES[2]} />
             <DrivableAirliner id="airlinerCargo" liveryColor={LIVERIES[3]} cargo />
+            {/* parked commercial traffic, mountable via E like policeCar/
+                patrolBoat — see lib/vehicleState.ts for their spawn spots */}
+            <CommercialVehicle kind="jeep" color="#4a6a8a" />
+            <CommercialVehicle kind="truck" color="#5a5a5a" />
+            <CommercialVehicle kind="bus" color="#2a5a3a" />
             <PoliceStation />
             <MizuRestaurant />
             <Marina />

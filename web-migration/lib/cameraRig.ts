@@ -24,6 +24,12 @@ export interface CameraRigArgs {
   // the camera sits inside the fuselage/tail instead of behind it.
   chaseDist?: number;
   chaseHeight?: number;
+  // cockpit-mode (camMode===1, four-wheelers only) eye position — default
+  // 1.3/-0.35 fits the sedan; components/CommercialVehicle.tsx passes taller/
+  // more-forward numbers per kind so a bus/truck/jeep driver sits where the
+  // cab actually puts them instead of at sedan seat height.
+  cockpitEyeHeight?: number;
+  cockpitForward?: number;
 }
 
 // Speed-FOV widen, ported from the original's tick() (index.html ~7704-7705):
@@ -55,6 +61,8 @@ export function applyCameraRig({
   speedMs = 0,
   chaseDist = 9.5,
   chaseHeight = 4.2,
+  cockpitEyeHeight = 1.3,
+  cockpitForward = -0.35,
 }: CameraRigArgs) {
   applySpeedFov(camera, camMode, isBike, speedMs, dt);
   const dx = Math.sin(th);
@@ -89,9 +97,9 @@ export function applyCameraRig({
     // cockpit / hood
     let ex: number, ey: number, ez: number, lookDrop = 2.2;
     if (camMode === 1 && !isBike) {
-      ex = tx + Math.cos(th) * -0.35 + dx * 0.15;
-      ez = tz - Math.sin(th) * -0.35 + dz * 0.15;
-      ey = ty + 1.3;
+      ex = tx + Math.cos(th) * cockpitForward + dx * 0.15;
+      ez = tz - Math.sin(th) * cockpitForward + dz * 0.15;
+      ey = ty + cockpitEyeHeight;
       lookDrop = 0.9;
     } else if (camMode === 1) {
       ex = tx + dx * 0.2;

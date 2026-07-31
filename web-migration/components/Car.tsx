@@ -3,7 +3,7 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RigidBody, CuboidCollider, useRapier, type RapierRigidBody, type RapierCollider } from "@react-three/rapier";
-import { PLAYER_GROUPS } from "@/lib/collisionGroups";
+import { VEHICLE_BODY_GROUPS } from "@/lib/collisionGroups";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, DEFAULT_HANDLING, type CarState, type CarHandling } from "@/lib/carPhysics";
@@ -16,7 +16,7 @@ import { applyCameraRig } from "@/lib/cameraRig";
 import { teleportRequest } from "@/lib/clubTeleport";
 import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
-import { SHORE_X, DROWN_RESPAWN } from "@/lib/marina";
+import { SHORE_X, DROWN_RESPAWN, clampFromWater } from "@/lib/marina";
 import { SupercarBody, styleFor, RIDE_HEIGHT, type CarStyle, type Detail } from "@/components/SupercarBody";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
@@ -42,6 +42,7 @@ export function Car() {
   const drownTime = useRef(0);
   const crashCooldown = useRef(0);
   const nitroFuel = useRef(NITRO_MAX);
+  const nitroLocked = useRef(false); // true from empty tank until a full recharge — blocks re-triggering on a half-full tank
   const camPos = useRef(new THREE.Vector3(0, 4, -10));
   const camLook = useRef(new THREE.Vector3());
   const controllerRef = useRef<KinematicCharacterController | null>(null);
@@ -91,7 +92,9 @@ export function Car() {
     // nitro: SHIFT+forward burns fuel for extra thrust and a raised top speed —
     // same constants as the original (10s tank, +150km/h, drains 1:1, refills at half rate)
     const wantNitro = isActive && k.forward && k.boost;
-    const nitroOn = wantNitro && nitroFuel.current > 0;
+    if (nitroFuel.current <= 0) nitroLocked.current = true;
+    else if (nitroFuel.current >= NITRO_MAX) nitroLocked.current = false;
+    const nitroOn = wantNitro && !nitroLocked.current && nitroFuel.current > 0;
     nitroFuel.current = nitroOn
       ? Math.max(0, nitroFuel.current - d)
       : Math.min(NITRO_MAX, nitroFuel.current + d * 0.5);
@@ -119,17 +122,24 @@ export function Car() {
     // in the game — skipping them from the sweep means the car's trajectory
     // never slides/stops on a cone, it just plows through while the solver
     // (unaffected by this query filter) still shoves the prop out of the way.
-    // filterGroups=PLAYER_GROUPS on the sweep itself, not just the collider's
+    // filterGroups=VEHICLE_BODY_GROUPS on the sweep itself, not just the collider's
     // own collisionGroups tag — see Player.tsx's computeColliderMovement for
     // why the tag alone doesn't make the character-controller query skip
-    // VEHICLE_ONLY colliders (airport gate gap, Airport.tsx).
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, PLAYER_GROUPS);
+    // VEHICLE_ONLY colliders (airport gate gap, Airport.tsx). The extra
+    // vehicle-body bit (vs. plain PLAYER_GROUPS) is what lets WATER_BOUNDARY
+    // (Marina.tsx) stop the car at the water's edge without also blocking
+    // the on-foot player from walking onto the dock.
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, VEHICLE_BODY_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
 
     const t = body.translation();
     const nextPos = { x: t.x + movement.x, y: t.y + movement.y, z: t.z + movement.z };
+    // hard backstop, independent of the WATER_BOUNDARY collider — see
+    // lib/marina.ts's clampFromWater for why the collider alone isn't
+    // trusted at nitro speed.
+    clampFromWater(nextPos);
 
     // drowning safety net: the shore wall (Marina.tsx) keeps this unreachable
     // in normal play, but respawn at POLICE HARBOR instead of leaving the car
@@ -219,15 +229,17 @@ export function Car() {
       {/* Dropped so the collider's BOTTOM face lands on the tyre contact patch
           rather than on the mesh origin. Centred, snapToGround parked the
           chassis at half the box height (0.65) and buried the car 0.33m. */}
-      {/* PLAYER_GROUPS (not the default collide-with-everything) so this,
+      {/* VEHICLE_BODY_GROUPS (not the default collide-with-everything) so this,
           the player's own car, passes through VEHICLE_ONLY colliders like
           the airport gate gap (Airport.tsx) that stop Traffic/PoliceCar —
-          same trick Player.tsx uses on foot. */}
+          same trick Player.tsx uses on foot — while still getting stopped by
+          WATER_BOUNDARY (Marina.tsx) at the water's edge, which the plain
+          PLAYER_GROUPS bit Player.tsx uses does NOT carry. */}
       <CuboidCollider
         ref={colliderRef}
         args={[carBox.x / 2, carBox.y / 2, carBox.z / 2]}
         position={[0, carBox.y / 2 - RIDE_HEIGHT, 0]}
-        collisionGroups={PLAYER_GROUPS}
+        collisionGroups={VEHICLE_BODY_GROUPS}
       />
       {/* keyed on the stolen paint so the mesh remounts when you take over a
           traffic car — CarMesh pins colour/style at mount (useState), so a

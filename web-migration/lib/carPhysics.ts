@@ -76,6 +76,43 @@ export const POLICE_HANDLING: CarHandling = {
   dragQ: 0.0016,
 };
 
+// Commercial traffic (components/CommercialVehicle.tsx) — same shape as
+// DEFAULT_HANDLING, just heavier and slower to feel like piloting something
+// big instead of a sedan. Jeep only a little under the sedan; bus is the
+// slowest/heaviest, truck close behind it.
+export const JEEP_HANDLING: CarHandling = {
+  max: 32,
+  accel: 14,
+  grip: 5.5,
+  turnGain: 0.7,
+  steerRamp: 2.4,
+  steerMin: 0.28,
+  drag: 0.42,
+  dragQ: 0.0018,
+};
+
+export const TRUCK_HANDLING: CarHandling = {
+  max: 26,
+  accel: 9,
+  grip: 3.8,
+  turnGain: 0.58,
+  steerRamp: 2.0,
+  steerMin: 0.3,
+  drag: 0.44,
+  dragQ: 0.0019,
+};
+
+export const BUS_HANDLING: CarHandling = {
+  max: 22,
+  accel: 7,
+  grip: 3.0,
+  turnGain: 0.5,
+  steerRamp: 1.8,
+  steerMin: 0.32,
+  drag: 0.45,
+  dragQ: 0.002,
+};
+
 export interface CarInput {
   forward: boolean;
   back: boolean;

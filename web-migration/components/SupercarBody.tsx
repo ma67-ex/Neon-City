@@ -220,6 +220,17 @@ export function SupercarBody({
           <mesh position={[s * 0.91, -0.5, -1.5]} material={body} castShadow>
             <boxGeometry args={[0.16, 0.34, 1.15]} />
           </mesh>
+          {/* wheel-arch liners: the flares above only cover the tyre's top
+              third (down to y=-0.70/-0.67); nothing continued that panel down
+              to the ground, so the tyre's lower two-thirds hung in open air
+              in front of/around the body instead of tucked in a wheel well.
+              These close that gap on the outboard face, front and rear. */}
+          <mesh position={[s * 0.9, -0.78, 1.55]} material={body} castShadow>
+            <boxGeometry args={[0.14, 0.5, 0.98]} />
+          </mesh>
+          <mesh position={[s * 0.94, -0.76, -1.5]} material={body} castShadow>
+            <boxGeometry args={[0.14, 0.56, 1.05]} />
+          </mesh>
           {/* side intake ahead of the rear wheel — the signature mid-engine cue */}
           <mesh position={[s * 0.87, -0.44, -0.5]} material={CARBON} castShadow>
             <boxGeometry args={[0.14, 0.26, 0.72]} />

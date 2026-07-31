@@ -8,7 +8,7 @@ import type { CarStyle } from "@/components/SupercarBody";
 // (components/AirportLife.tsx's BrokenJet) — it has no vehicleState entry, no
 // mount trigger, nothing to fly, by design (wing off, under repair forever).
 export type AirlinerId = "airliner1" | "airliner2" | "airliner3" | "airlinerCargo";
-export type VehicleKind = "car" | "boat" | "bike" | "policeCar" | "patrolBoat" | "plane" | "helicopter" | "policeJet" | AirlinerId;
+export type VehicleKind = "car" | "boat" | "boat2" | "boat3" | "bike" | "policeCar" | "policeJeep" | "patrolBoat" | "plane" | "helicopter" | "policeJet" | "jeep" | "bus" | "truck" | AirlinerId;
 export type ActiveMode = VehicleKind | "foot";
 export const CAM_MODES = ["CHASE", "COCKPIT", "HOOD", "CINE"] as const;
 export type CamMode = 0 | 1 | 2 | 3;
@@ -27,11 +27,21 @@ export const VEHICLE_NAMES: Record<VehicleKind, string> = {
   car: "CITY SEDAN",
   bike: "STREET BIKE",
   boat: "SEA SPRITE",
+  boat2: "HARBOR SKIFF",
+  boat3: "MARINA CRUISER",
   policeCar: "POLICE CRUISER",
+  // the airport's security jeep (components/Airport.tsx's old GateGuardPost,
+  // now components/PoliceJeep.tsx + a patrol lane in components/Traffic.tsx)
+  policeJeep: "GATE SECURITY JEEP",
   patrolBoat: "HARBOR PATROL",
   plane: "SKY RUNNER",
   helicopter: "HARBOR CHOPPER",
   policeJet: "SKY MARSHAL",
+  // parked/stealable commercial traffic (components/CommercialVehicle.tsx) —
+  // mountable via E like policeCar/patrolBoat, not in the B-cycle CYCLE array
+  jeep: "OFF-ROAD JEEP",
+  bus: "CITY BUS",
+  truck: "CARGO TRUCK",
   airliner1: "AZURE WINGS — GATE 2",
   airliner2: "CRIMSON SKYWAY — GATE 3",
   airliner3: "EMERALD PACIFIC — GATE 4",
@@ -39,7 +49,7 @@ export const VEHICLE_NAMES: Record<VehicleKind, string> = {
 };
 // hulls — anything that floats, not just the original "boat". Used wherever a
 // feature needs to exclude/include boats generically (club door, dock walking).
-export const BOAT_KINDS: readonly VehicleKind[] = ["boat", "patrolBoat"];
+export const BOAT_KINDS: readonly VehicleKind[] = ["boat", "boat2", "boat3", "patrolBoat"];
 
 let msgTimer: ReturnType<typeof setTimeout> | null = null;
 

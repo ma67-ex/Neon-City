@@ -1,7 +1,15 @@
 "use client";
 
+import { type RefObject } from "react";
 import * as THREE from "three";
 import { HEADLIGHT, TAILLIGHT, BEAM, RIDE_HEIGHT, type Detail } from "@/components/SupercarBody";
+
+// Amber mirror-beacon materials — same flashing technique as PoliceCar.tsx's
+// light bar (a MeshBasicMaterial ref, flipped color in the owning drive rig's
+// useFrame), just amber instead of red/blue so a stolen commercial vehicle
+// doesn't read as a cop car. `lightRefs` is optional: Traffic.tsx's own NPC
+// copies (never driven, never stolen) pass none and just get a static beacon.
+export type LightRefs = RefObject<(THREE.MeshBasicMaterial | null)[]>;
 
 // Commercial traffic bodywork — jeeps/buses/trucks for Traffic.tsx, genuinely
 // different boxy silhouettes rather than a recolour of SupercarBody's wedge.
@@ -93,6 +101,20 @@ function Wheel({
   );
 }
 
+// Wheel-arch liner: same bug as SupercarBody.tsx's tyres — the skid/rail/hull
+// slab that runs the vehicle's length sits well above the wheel and never
+// reached down to it, so the tyre floated exposed under the body with nothing
+// bracketing it front-to-back. This closes that gap on the outboard face at
+// each corner, sized off the wheel's own radius so it scales with jeep/bus/
+// truck's very different tyre sizes.
+function WheelArch({ x, z, radius, material }: { x: number; z: number; radius: number; material: THREE.Material }) {
+  return (
+    <mesh position={[x, FLOOR + radius * 0.85, z]} material={material} castShadow>
+      <boxGeometry args={[0.14, radius * 1.5, radius * 2.05]} />
+    </mesh>
+  );
+}
+
 export type CommercialKind = "jeep" | "bus" | "truck";
 
 export function CommercialBody({
@@ -100,15 +122,29 @@ export function CommercialBody({
   color,
   detail = "high",
   lit = true,
+  lightRefs,
 }: {
   kind: CommercialKind;
   color: string;
   detail?: Detail;
   lit?: boolean;
+  lightRefs?: LightRefs;
 }) {
-  if (kind === "bus") return <BusBody color={color} detail={detail} lit={lit} />;
-  if (kind === "truck") return <TruckBody color={color} detail={detail} lit={lit} />;
-  return <JeepBody color={color} detail={detail} lit={lit} />;
+  if (kind === "bus") return <BusBody color={color} detail={detail} lit={lit} lightRefs={lightRefs} />;
+  if (kind === "truck") return <TruckBody color={color} detail={detail} lit={lit} lightRefs={lightRefs} />;
+  return <JeepBody color={color} detail={detail} lit={lit} lightRefs={lightRefs} />;
+}
+
+// small flashing beacon mesh, dropped at a mirror/stalk position — undefined-
+// safe on lightRefs so Traffic.tsx's own NPC copies (which pass none) just
+// render a static amber dot instead of crashing on a missing ref array
+function Beacon({ x, y, z, index, lightRefs }: { x: number; y: number; z: number; index: number; lightRefs?: LightRefs }) {
+  return (
+    <mesh position={[x, y, z]}>
+      <sphereGeometry args={[0.05, 8, 8]} />
+      <meshBasicMaterial ref={(el) => { if (lightRefs) lightRefs.current[index] = el; }} color="#ffb000" />
+    </mesh>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +152,7 @@ export function CommercialBody({
 // sedan, spare tire on the tailgate — that spare is the one silhouette cue
 // that stays visible at every detail level, the rest of the fine stuff
 // (mirrors, hub caps) drops out at low like SupercarBody's chrome trim does.
-function JeepBody({ color, detail, lit }: { color: string; detail: Detail; lit: boolean }) {
+function JeepBody({ color, detail, lit, lightRefs }: { color: string; detail: Detail; lit: boolean; lightRefs?: LightRefs }) {
   const body = paint(color);
   const high = detail === "high";
   const headlightMat = lit ? HEADLIGHT : HEADLIGHT_OFF;
@@ -190,25 +226,34 @@ function JeepBody({ color, detail, lit }: { color: string; detail: Detail; lit: 
       {high && (
         <mesh position={[0, FLOOR + 0.98, -2.04]} material={RIM} scale={[0.2, 0.2, 0.22]} geometry={SPARE_GEO} />
       )}
-      {/* mirrors — high detail only, same call SupercarBody makes */}
+      {/* mirrors — high detail only, same call SupercarBody makes — plus an
+          amber beacon at each, flashed by the owning drive rig (or static
+          amber for Traffic.tsx's own un-driven NPC copies) */}
       {high &&
-        [1, -1].map((s) => (
-          <mesh key={`mir${s}`} position={[s * 0.98, FLOOR + 1.12, 1.2]} material={TRIM} castShadow>
-            <boxGeometry args={[0.06, 0.12, 0.14]} />
-          </mesh>
+        [1, -1].map((s, i) => (
+          <group key={`mir${s}`}>
+            <mesh position={[s * 0.98, FLOOR + 1.12, 1.2]} material={TRIM} castShadow>
+              <boxGeometry args={[0.06, 0.12, 0.14]} />
+            </mesh>
+            <Beacon x={s * 0.98} y={FLOOR + 1.2} z={1.2} index={i} lightRefs={lightRefs} />
+          </group>
         ))}
 
       <Wheel x={0.86} z={1.5} radius={wr} width={0.34} detail={detail} />
       <Wheel x={-0.86} z={1.5} radius={wr} width={0.34} detail={detail} />
       <Wheel x={0.86} z={-1.5} radius={wr} width={0.34} detail={detail} />
       <Wheel x={-0.86} z={-1.5} radius={wr} width={0.34} detail={detail} />
+      <WheelArch x={0.9} z={1.5} radius={wr} material={body} />
+      <WheelArch x={-0.9} z={1.5} radius={wr} material={body} />
+      <WheelArch x={0.9} z={-1.5} radius={wr} material={body} />
+      <WheelArch x={-0.9} z={-1.5} radius={wr} material={body} />
     </group>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Bus: long rectangular box, tall, rows of side glass, one livery stripe.
-function BusBody({ color, detail, lit }: { color: string; detail: Detail; lit: boolean }) {
+function BusBody({ color, detail, lit, lightRefs }: { color: string; detail: Detail; lit: boolean; lightRefs?: LightRefs }) {
   const body = paint(color);
   const livery = liveryFor(color);
   const high = detail === "high";
@@ -276,11 +321,27 @@ function BusBody({ color, detail, lit }: { color: string; detail: Detail; lit: b
           <boxGeometry args={[0.04, 0.9, 0.7]} />
         </mesh>
       )}
+      {/* mirror stalks — BusBody had none at all; same style/height as the
+          jeep/truck mirrors, mounted either side of the windshield, plus the
+          same amber beacon */}
+      {high &&
+        [1, -1].map((s, i) => (
+          <group key={`mir${s}`}>
+            <mesh position={[s * 1.08, FLOOR + 1.62, 2.9]} material={TRIM} castShadow>
+              <boxGeometry args={[0.06, 0.16, 0.18]} />
+            </mesh>
+            <Beacon x={s * 1.08} y={FLOOR + 1.72} z={2.9} index={i} lightRefs={lightRefs} />
+          </group>
+        ))}
 
       <Wheel x={0.83} z={2.4} radius={wr} width={0.4} detail={detail} />
       <Wheel x={-0.83} z={2.4} radius={wr} width={0.4} detail={detail} />
       <Wheel x={0.83} z={-2.4} radius={wr} width={0.4} detail={detail} />
       <Wheel x={-0.83} z={-2.4} radius={wr} width={0.4} detail={detail} />
+      <WheelArch x={0.9} z={2.4} radius={wr} material={body} />
+      <WheelArch x={-0.9} z={2.4} radius={wr} material={body} />
+      <WheelArch x={0.9} z={-2.4} radius={wr} material={body} />
+      <WheelArch x={-0.9} z={-2.4} radius={wr} material={body} />
     </group>
   );
 }
@@ -288,7 +349,7 @@ function BusBody({ color, detail, lit }: { color: string; detail: Detail; lit: b
 // ---------------------------------------------------------------------------
 // Truck: cab-over cab (no hood — simpler than a bonneted cab, and reads
 // clearly as "truck" next to a box cargo body that's taller/wider than the cab).
-function TruckBody({ color, detail, lit }: { color: string; detail: Detail; lit: boolean }) {
+function TruckBody({ color, detail, lit, lightRefs }: { color: string; detail: Detail; lit: boolean; lightRefs?: LightRefs }) {
   const body = paint(color);
   const high = detail === "high";
   const headlightMat = lit ? HEADLIGHT : HEADLIGHT_OFF;
@@ -345,18 +406,25 @@ function TruckBody({ color, detail, lit }: { color: string; detail: Detail; lit:
           <planeGeometry args={[5.0, 7.8]} />
         </mesh>
       )}
-      {/* mirrors — high detail only */}
+      {/* mirrors — high detail only, plus an amber beacon at each */}
       {high &&
-        [1, -1].map((s) => (
-          <mesh key={`mir${s}`} position={[s * 1.0, FLOOR + 1.14, 2.1]} material={TRIM} castShadow>
-            <boxGeometry args={[0.06, 0.14, 0.16]} />
-          </mesh>
+        [1, -1].map((s, i) => (
+          <group key={`mir${s}`}>
+            <mesh position={[s * 1.0, FLOOR + 1.14, 2.1]} material={TRIM} castShadow>
+              <boxGeometry args={[0.06, 0.14, 0.16]} />
+            </mesh>
+            <Beacon x={s * 1.0} y={FLOOR + 1.22} z={2.1} index={i} lightRefs={lightRefs} />
+          </group>
         ))}
 
       <Wheel x={0.86} z={1.55} radius={wr} width={0.36} detail={detail} />
       <Wheel x={-0.86} z={1.55} radius={wr} width={0.36} detail={detail} />
       <Wheel x={0.86} z={-1.9} radius={wr} width={0.4} detail={detail} />
       <Wheel x={-0.86} z={-1.9} radius={wr} width={0.4} detail={detail} />
+      <WheelArch x={0.9} z={1.55} radius={wr} material={body} />
+      <WheelArch x={-0.9} z={1.55} radius={wr} material={body} />
+      <WheelArch x={0.9} z={-1.9} radius={wr} material={body} />
+      <WheelArch x={-0.9} z={-1.9} radius={wr} material={body} />
     </group>
   );
 }

@@ -561,12 +561,12 @@ const LANDMARK_CHUNKS = new Set(LANDMARKS.map((l) => `${Math.round(l.x / CELL)},
 const CLUB_IN_CHUNK = `${Math.round(CLUB_IN.x / CELL)},${Math.round(CLUB_IN.z / CELL)}`;
 // INTERNATIONAL AIRPORT is a 480x480m walled airfield (real-scale runway,
 // terminal, hangars, cargo yard — see components/Airport.tsx's FENCE_X/FENCE_Z
-// = 240 around world (-300,100)), far too big for one chunk. Clears the whole
-// 5x5 chunk block around its centre chunk ((-3,1), see lib/landmarks.ts) —
+// = 240 around world (-750,100)), far too big for one chunk. Clears the whole
+// 5x5 chunk block around its centre chunk ((-8,1), see lib/landmarks.ts) —
 // exactly the chunks the perimeter fence touches — so the airfield reads as
 // its own isolated compound rather than random buildings poking through the
 // fence line and skyscrapers standing in the middle of the runway.
-const AIRPORT_CENTER_CHUNK = { ci: Math.round(-300 / CELL), cj: Math.round(100 / CELL) };
+const AIRPORT_CENTER_CHUNK = { ci: Math.round(-750 / CELL), cj: Math.round(100 / CELL) };
 // exported so components/Pedestrians.tsx can steer its spawn/rehome picks off
 // this same footprint — the airport is sealed to vehicles at its one gate
 // (components/Airport.tsx's PerimeterFence) but foot traffic isn't blocked by
