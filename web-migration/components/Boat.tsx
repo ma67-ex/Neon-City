@@ -83,6 +83,8 @@ export function Boat() {
     vehicleState.boat.x = pos.current.x;
     vehicleState.boat.z = pos.current.z;
     vehicleState.boat.h = boat.current.h;
+    vehicleState.boat.speed = boat.current.speed;
+    vehicleState.boat.vLat = boat.current.vLat;
 
     if (!isActive) return;
     worldState.px = pos.current.x;
