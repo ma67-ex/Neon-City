@@ -104,7 +104,11 @@ export function updateEngineAudio(speedKmh: number, driving: boolean, nitroActiv
   audio.osc2.frequency.setTargetAtTime(24 + drv * 1.2, audio.ctx.currentTime, 0.05);
   audio.gain.gain.setTargetAtTime(g, audio.ctx.currentTime, 0.08);
 
-  if (nitroActive && !muted) {
+  // TEMP TEST FLAG (2026-07-31, Akul): nitro roar reads as pure noise at high
+  // RPM — muted here to test engine-only sound while that gets tuned. Revert
+  // (false) once it's fixed; not meant to ship silent.
+  const NITRO_MUTED_FOR_TEST = true;
+  if (nitroActive && !muted && !NITRO_MUTED_FOR_TEST) {
     audio.nitroGain.gain.setTargetAtTime(0.13, audio.ctx.currentTime, 0.05);
     audio.nFilt.frequency.setTargetAtTime(220 + drv * 9, audio.ctx.currentTime, 0.05);
   } else {
