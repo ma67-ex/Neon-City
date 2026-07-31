@@ -287,6 +287,8 @@ export function Player() {
         foot.current.vy = 0;
         slide.current.x = 0;
         slide.current.z = 0;
+        ragdoll.current = null;
+        groupRef.current.rotation.x = 0;
         worldState.px = START.x;
         worldState.pz = START.z;
         worldState.heading = START.h;
