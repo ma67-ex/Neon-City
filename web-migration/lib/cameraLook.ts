@@ -30,8 +30,8 @@ export const MAX_PITCH_UP = 0.85; // full mouse-up travel — camera lifts
 export const MAX_PITCH_DOWN = -0.45; // full mouse-down travel — camera drops
 // Radians of yaw / pitch-units added per pixel of raw mouse movement. Tuned
 // so a comfortable few-inch mouse swipe covers a full spin.
-export const YAW_SENSITIVITY = 0.0028;
-export const PITCH_SENSITIVITY = 0.0022;
+export const YAW_SENSITIVITY = 0.0045;
+export const PITCH_SENSITIVITY = 0.0035;
 // Fraction of the remaining distance left per second — the easing that keeps
 // the camera from snapping instantly to each new mouse delta.
 export const EASE = 0.0008;
