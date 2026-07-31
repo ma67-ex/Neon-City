@@ -11,7 +11,7 @@ import { useHudStore } from "@/lib/hudStore";
 export function AudioEngine() {
   useFrame(() => {
     const s = useHudStore.getState();
-    updateEngineAudio(s.speedKmh, s.active === "car" && s.nitroActive);
+    updateEngineAudio(s.speedKmh, s.active !== "foot", s.active === "car" && s.nitroActive);
   });
   return null;
 }
