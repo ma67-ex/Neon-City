@@ -124,6 +124,8 @@ export function PoliceCar() {
     vehicleState.policeCar.x = nextPos.x;
     vehicleState.policeCar.z = nextPos.z;
     vehicleState.policeCar.h = car.current.h;
+    vehicleState.policeCar.speed = car.current.speed;
+    vehicleState.policeCar.vLat = car.current.vLat;
 
     // light bar always flashes, active or parked — police cars look "on duty" whether driven or not
     const flashRed = Math.floor(state.clock.elapsedTime * 5) % 2 === 0;
