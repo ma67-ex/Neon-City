@@ -161,14 +161,32 @@ export function Player() {
     const d = Math.min(dt, 0.05);
     const k = keys.current;
 
+    // ragdoll tick: tumble while airborne, count the lying-flat stun once
+    // landed, hand control back when it expires. Runs BEFORE the input read
+    // below so a just-expired ragdoll releases control the same frame.
+    if (ragdoll.current) {
+      if (ragdoll.current.air) {
+        groupRef.current.rotation.x += ragdoll.current.spin * d;
+      } else {
+        ragdoll.current.lieT += d;
+        if (ragdoll.current.lieT > RAGDOLL_LIE_TIME) {
+          ragdoll.current = null;
+          groupRef.current.rotation.x = 0;
+        }
+      }
+    }
+    const ragdollActive = !!ragdoll.current;
+
     // Camera-relative movement, replacing the original's tank controls (its
     // on-foot block just did `player.h += 2.6*dt` on A/D). Turning in place
     // while the chase camera rigidly tracked that heading meant you only ever
     // saw the character's back, so pressing A/D read as the world swinging
     // rather than him turning. Now WASD names a direction on screen, he turns
     // to face it, and the camera holds still while he does.
-    const ix = (k.right ? 1 : 0) - (k.left ? 1 : 0);
-    const iz = (k.forward ? 1 : 0) - (k.back ? 1 : 0);
+    // Forced to 0 while ragdollActive — can't steer a tumble or walk off a
+    // stun; hasInput/move naturally fall to false/0 below with no extra checks.
+    const ix = ragdollActive ? 0 : (k.right ? 1 : 0) - (k.left ? 1 : 0);
+    const iz = ragdollActive ? 0 : (k.forward ? 1 : 0) - (k.back ? 1 : 0);
     // named for the INPUT, not the speed — there's a separate `moving` further
     // down that means "actually travelling", used to drive the walk cycle
     const hasInput = ix !== 0 || iz !== 0;
