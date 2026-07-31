@@ -260,6 +260,13 @@ export function Player() {
     controller.computeColliderMovement(collider, { x: dx, y: foot.current.vy * d, z: dz }, undefined, PLAYER_GROUPS);
     const grounded = controller.computedGrounded();
     groundedRef.current = grounded;
+    // landing out of a ragdoll launch: stop tumbling, snap to lying flat
+    // (same convention Pedestrians.tsx uses), start the stun countdown
+    if (ragdoll.current?.air && grounded && foot.current.vy <= 0) {
+      ragdoll.current.air = false;
+      ragdoll.current.lieT = 0;
+      groupRef.current.rotation.x = -Math.PI / 2;
+    }
     if (grounded && foot.current.vy <= 0) foot.current.vy = 0;
     const movement = controller.computedMovement();
 
