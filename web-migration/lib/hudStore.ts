@@ -146,6 +146,8 @@ export const useHudStore = create<HudState>((set, get) => ({
   setInClub: (v) => set({ inClub: v }),
   toggleControlsVisible: () => set((s) => ({ controlsVisible: !s.controlsVisible })),
   setStolenCar: (v) => set({ stolenCar: v }),
+  setLookSensitivity: (v) =>
+    set({ lookSensitivity: Math.max(MIN_LOOK_SENS, Math.min(MAX_LOOK_SENS, v)) }),
   vehicleName: () => {
     const a = get().active;
     return a === "foot" ? "ON FOOT" : VEHICLE_NAMES[a];
