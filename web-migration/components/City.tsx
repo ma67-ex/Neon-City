@@ -580,6 +580,12 @@ for (let di = -AIRPORT_CHUNK_RADIUS; di <= AIRPORT_CHUNK_RADIUS; di++) {
   }
 }
 
+// TEMP TEST FLAG (2026-07-31, Akul): flip to false to A/B the staggered
+// chunk-mount streaming against mounting a whole new ring in one frame — see
+// which one actually causes the stutter he's chasing. Revert (true) once
+// he's done comparing; this isn't meant to ship either way permanently yet.
+const SAFE_MODE_DISABLE_STREAMING = false;
+
 // New chunks needed this many at a time per frame, once a boundary crossing
 // queues them — see the ADD_PER_FRAME note in City() below.
 const ADD_PER_FRAME = 2;
