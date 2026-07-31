@@ -25,6 +25,8 @@ export function HUD() {
   const waypointDist = useHudStore((s) => s.waypointDist);
   const waypointDeg = useHudStore((s) => s.waypointDeg);
   const setMapOpen = useHudStore((s) => s.setMapOpen);
+  const lookSensitivity = useHudStore((s) => s.lookSensitivity);
+  const setLookSensitivity = useHudStore((s) => s.setLookSensitivity);
 
   return (
     <>
