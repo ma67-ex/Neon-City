@@ -35,7 +35,8 @@ function applySpeedFov(camera: THREE.Camera, camMode: 0 | 1 | 2 | 3, isBike: boo
   if (!(camera instanceof THREE.PerspectiveCamera)) return;
   const inCockpit = camMode === 1 && !isBike;
   const wantFov = camMode === 3 ? 55 : inCockpit ? 68 + Math.min(speedMs * 0.22, 14) : 62 + Math.min(speedMs * 0.26, 17);
-  camera.fov += (wantFov - camera.fov) * Math.min(1, dt * 3.5);
+  const dClamped = Math.min(dt, 0.033);
+  camera.fov += (wantFov - camera.fov) * Math.min(1, dClamped * 3.5);
   camera.updateProjectionMatrix();
 }
 
@@ -74,12 +75,14 @@ export function applyCameraRig({
     const want = new THREE.Vector3(tx - ox * orbit, h, tz - oz * orbit);
     // tighten the follow while the cursor is leaning the view, so the lean
     // reads as a deliberate camera move rather than the usual lazy drift
-    const k = 1 - Math.pow(cameraLook.locked ? 0.00002 : 0.0015, dt);
+    // clamp dt to prevent jitter from frame drops hitting pow() with large values
+    const dClamped = Math.min(dt, 0.033);
+    const k = 1 - Math.pow(cameraLook.locked ? 0.00002 : 0.0015, dClamped);
     camPos.lerp(want, k);
     camera.position.copy(camPos);
     camLook.lerp(
       new THREE.Vector3(tx + ox * 4, ty + 1.6 - cameraLook.pitch * 1.2, tz + oz * 4),
-      1 - Math.pow(cameraLook.locked ? 0.00002 : 0.0005, dt),
+      1 - Math.pow(cameraLook.locked ? 0.00002 : 0.0005, dClamped),
     );
     camera.lookAt(camLook);
   } else if (camMode === 1 || camMode === 2) {
@@ -125,7 +128,8 @@ export function applyCameraRig({
       cx3 = tx - dz * 6; cy3 = ty + 0.55; cz3 = tz + dx * 6;
       lx3 = tx; ly3 = ty + 0.6; lz3 = tz;
     }
-    const k2 = 1 - Math.pow(0.004, dt);
+    const dClamped2 = Math.min(dt, 0.033);
+    const k2 = 1 - Math.pow(0.004, dClamped2);
     camPos.lerp(new THREE.Vector3(cx3, cy3, cz3), k2);
     camera.position.copy(camPos);
     camLook.lerp(new THREE.Vector3(lx3, ly3, lz3), k2);

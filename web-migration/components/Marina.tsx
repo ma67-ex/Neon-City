@@ -41,13 +41,13 @@ export function Marina() {
           unbounded in z, so this runs the full length rather than a fixed
           span — no matter how far along the coast you drive, it holds.
           Taller than the controller's 0.3 autostep so it stops rather than
-          climbs. */}
+          climbs. Thickened to 2.0 to prevent high-speed clipping. */}
       <RigidBody type="fixed" colliders={false}>
-        <CuboidCollider args={[0.5, 0.6, 50000]} position={[LAND_EDGE_X, 0.6, PIER_Z - 4.5 - 50000]} />
-        <CuboidCollider args={[0.5, 0.6, 50000]} position={[LAND_EDGE_X, 0.6, PIER_Z + 4.5 + 50000]} />
+        <CuboidCollider args={[2.0, 0.6, 50000]} position={[LAND_EDGE_X - 1, 0.6, PIER_Z - 4.5 - 50000]} />
+        <CuboidCollider args={[2.0, 0.6, 50000]} position={[LAND_EDGE_X - 1, 0.6, PIER_Z + 4.5 + 50000]} />
         {/* closes the pier gap for cars/bikes only — the player still walks
             through here to reach the dock and board the boat */}
-        <CuboidCollider args={[0.5, 0.6, 4.5]} position={[LAND_EDGE_X, 0.6, PIER_Z]} collisionGroups={VEHICLE_ONLY} />
+        <CuboidCollider args={[2.0, 0.6, 4.5]} position={[LAND_EDGE_X - 1, 0.6, PIER_Z]} collisionGroups={VEHICLE_ONLY} />
       </RigidBody>
       <mesh position={[LAND_EDGE_X + PIER_LEN / 2, 0.5, PIER_Z]} receiveShadow castShadow>
         <boxGeometry args={[PIER_LEN, 0.4, 9]} />

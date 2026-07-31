@@ -64,6 +64,8 @@ export function Boat() {
 
     pos.current.x += dx;
     pos.current.z += dz;
+    // keep boat in water — clamp x to water side (>= LAND_EDGE_X prevents beaching)
+    pos.current.x = Math.max(pos.current.x, LAND_EDGE_X + 5);
     // hull-only dock collision — Boat.tsx never queries Rapier colliders (see
     // the class comment above), so the dock's solid RigidBody (Marina.tsx)
     // doesn't stop it; ported pierPush() does, same as the original
