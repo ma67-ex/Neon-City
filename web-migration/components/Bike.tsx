@@ -169,6 +169,8 @@ export function Bike() {
     vehicleState.bike.x = nextPos.x;
     vehicleState.bike.z = nextPos.z;
     vehicleState.bike.h = bike.current.h;
+    vehicleState.bike.speed = bike.current.speed;
+    vehicleState.bike.vLat = bike.current.vLat;
 
     if (!isActive) return;
     worldState.px = nextPos.x;
