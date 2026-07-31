@@ -189,7 +189,7 @@ export function Weather() {
     // snow packs the road tighter than rain wets it — lower grip target
     weatherState.wetGrip = THREE.MathUtils.lerp(
       weatherState.wetGrip,
-      isRain ? 0.8 : isSnow ? 0.6 : 1,
+      isRain ? 0.5 : isSnow ? 0.3 : 1,
       Math.min(1, dt * 0.8)
     );
 
