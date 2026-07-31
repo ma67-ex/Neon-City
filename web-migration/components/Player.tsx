@@ -231,8 +231,9 @@ export function Player() {
 
     // jump: Space edge-triggers, only from the ground; holding it through the
     // rise keeps full gravity (long jump), releasing early steepens it (short hop)
+    // Also gated off ragdollActive — can't jump mid-tumble or the instant you land stunned.
     const spaceDown = k.handbrake;
-    if (spaceDown && !spaceWasDown.current && groundedRef.current) foot.current.vy = JUMP_VY;
+    if (!ragdollActive && spaceDown && !spaceWasDown.current && groundedRef.current) foot.current.vy = JUMP_VY;
     spaceWasDown.current = spaceDown;
     const gravity = foot.current.vy > 0 && !spaceDown ? GRAV_RISING_RELEASED : GRAV_OTHER;
     foot.current.vy = Math.max(foot.current.vy + gravity * d, -16);
