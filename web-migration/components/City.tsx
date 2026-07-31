@@ -627,7 +627,8 @@ export function City() {
       });
     }
     if (pendingAdd.current.length > 0) {
-      const batch = pendingAdd.current.splice(0, ADD_PER_FRAME);
+      const n = SAFE_MODE_DISABLE_STREAMING ? pendingAdd.current.length : ADD_PER_FRAME;
+      const batch = pendingAdd.current.splice(0, n);
       setChunks((cur) => Array.from(new Set([...cur, ...batch])));
     }
   });
