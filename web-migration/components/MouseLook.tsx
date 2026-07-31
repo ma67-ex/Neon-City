@@ -27,10 +27,13 @@ export function MouseLook() {
 
     const onMove = (e: MouseEvent) => {
       if (document.pointerLockElement !== el) return;
-      cameraLook.targetYaw = wrapAngle(cameraLook.targetYaw - e.movementX * YAW_SENSITIVITY);
+      // player-tunable multiplier on top of the tuned base constants — see
+      // the slider in HUD.tsx / hudStore.lookSensitivity
+      const k = useHudStore.getState().lookSensitivity;
+      cameraLook.targetYaw = wrapAngle(cameraLook.targetYaw - e.movementX * YAW_SENSITIVITY * k);
       cameraLook.targetPitch = Math.max(
         MAX_PITCH_DOWN,
-        Math.min(MAX_PITCH_UP, cameraLook.targetPitch + e.movementY * PITCH_SENSITIVITY),
+        Math.min(MAX_PITCH_UP, cameraLook.targetPitch + e.movementY * PITCH_SENSITIVITY * k),
       );
     };
 
