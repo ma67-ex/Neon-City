@@ -87,11 +87,19 @@ export function setMuted(v: boolean) {
   }
 }
 
-/** Call every frame with the driving vehicle's speed and nitro state. */
-export function updateEngineAudio(speedKmh: number, nitroActive: boolean) {
+/** Call every frame with the driving vehicle's speed and nitro state.
+ * `driving` must be false when the player is on foot (or in anything that
+ * doesn't feed this rig) — without it, the engine hum outlives the vehicle:
+ * hudStore.speedKmh is only ever written by the ACTIVE vehicle's own useFrame
+ * (see e.g. Car.tsx's `if (!isActive) return`), so the moment you bail it
+ * freezes at whatever speed you jumped out at instead of decaying, and idle
+ * gain (0.02 baseline below, even at 0 speed) means "frozen at 0" still
+ * wouldn't have been silent either — this has to be an explicit gate, not
+ * just passing 0 for speed. */
+export function updateEngineAudio(speedKmh: number, driving: boolean, nitroActive: boolean) {
   if (!audio) return;
-  const drv = speedKmh / 3.6; // back to m/s, matches the original's Math.abs(v.speed)
-  const g = !muted ? clamp(0.02 + drv * 0.0008, 0, 0.06) : 0;
+  const drv = driving ? speedKmh / 3.6 : 0; // back to m/s, matches the original's Math.abs(v.speed)
+  const g = !muted && driving ? clamp(0.02 + drv * 0.0008, 0, 0.06) : 0;
   audio.osc.frequency.setTargetAtTime(48 + drv * 2.4, audio.ctx.currentTime, 0.05);
   audio.osc2.frequency.setTargetAtTime(24 + drv * 1.2, audio.ctx.currentTime, 0.05);
   audio.gain.gain.setTargetAtTime(g, audio.ctx.currentTime, 0.08);
