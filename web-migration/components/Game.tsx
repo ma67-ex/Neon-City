@@ -66,6 +66,7 @@ export default function Game() {
     if (!save) return;
     useHudStore.getState().setCamMode(save.camMode);
     useHudStore.getState().setLightMode(save.lightMode ?? 0);
+    useHudStore.getState().setLookSensitivity(save.lookSensitivity ?? 1);
     setMuted(save.muted);
     // don't restore `active` via toggleActive (cycles relative to current, and
     // can only ever reach car/bike/boat — see hudStore.toggleActive's no-op-on-foot
