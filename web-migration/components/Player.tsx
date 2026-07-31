@@ -42,6 +42,11 @@ const SPRINT_SPEED = 9;
 const JUMP_VY = 7.5;
 const GRAV_RISING_RELEASED = -46;
 const GRAV_OTHER = -20;
+// How fast a vehicle-bailout slide (lib/playerTeleport.ts's vx/vz, set by
+// lib/player.ts on dismount) bleeds off — ground friction on a body that
+// just hit the pavement running, not a walking-speed decel. At this rate a
+// ~20 m/s eject (72 km/h) skids roughly v0/SLIDE_DRAG ≈ 5-6m before stopping.
+const SLIDE_DRAG = 3.5;
 
 const START = { x: -48, z: 20, h: Math.PI }; // near VENU, matches the original's player spawn
 
