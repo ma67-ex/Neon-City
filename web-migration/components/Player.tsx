@@ -189,8 +189,19 @@ export function Player() {
     const gravity = foot.current.vy > 0 && !spaceDown ? GRAV_RISING_RELEASED : GRAV_OTHER;
     foot.current.vy = Math.max(foot.current.vy + gravity * d, -16);
 
-    const dx = Math.sin(foot.current.h) * foot.current.speed * d;
-    const dz = Math.cos(foot.current.h) * foot.current.speed * d;
+    // ground friction bleeding off any bail-out slide (see SLIDE_DRAG) — added
+    // on top of, not instead of, the WASD walk so pressing a key mid-skid
+    // steers rather than overriding; once it decays under a few cm/s this is
+    // a no-op and normal walking is indistinguishable from before it existed
+    slide.current.x *= Math.max(0, 1 - SLIDE_DRAG * d);
+    slide.current.z *= Math.max(0, 1 - SLIDE_DRAG * d);
+    if (Math.hypot(slide.current.x, slide.current.z) < 0.05) {
+      slide.current.x = 0;
+      slide.current.z = 0;
+    }
+
+    const dx = Math.sin(foot.current.h) * foot.current.speed * d + slide.current.x * d;
+    const dz = Math.cos(foot.current.h) * foot.current.speed * d + slide.current.z * d;
     // filterGroups=PLAYER_GROUPS on the sweep itself: the collider's own
     // collisionGroups tag only governs contact-solving between overlapping
     // bodies, not this manual character-controller query — without passing
