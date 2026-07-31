@@ -1,5 +1,5 @@
 import { worldState } from "@/lib/worldState";
-import { useHudStore, BOAT_KINDS } from "@/lib/hudStore";
+import { useHudStore } from "@/lib/hudStore";
 import { requestTeleport } from "@/lib/clubTeleport";
 import { requestPlayerTeleport } from "@/lib/playerTeleport";
 import { startClubMusic, stopClubMusic } from "@/lib/audio";
@@ -25,15 +25,15 @@ function teleport(x: number, z: number, h: number) {
 }
 
 // Ported from the original's clubDoorAction() — same squared-distance
-// thresholds. The original only lets you through the door on foot
-// (player.onFoot); this build additionally allows driving straight in on
-// any land vehicle (car/bike/police cruiser — an addition, not in the
-// original) since the door was built before on-foot mode existed and
-// there's no reason to take the shortcut away now. Hulls still excluded —
-// no boat can reach the door.
+// thresholds, and the original's actual restriction: on foot only
+// (player.onFoot). An earlier build in this migration allowed driving any
+// land vehicle straight through the door as a bonus shortcut; reverted —
+// VENU is meant to be a walk-in place, not a garage, and a parked car left
+// sitting on CLUB_IN's dance floor (reachable this way) was a real reported
+// bug, not a feature.
 export function clubDoorAction(): boolean {
   const hud = useHudStore.getState();
-  if ((BOAT_KINDS as readonly string[]).includes(hud.active)) return false;
+  if (hud.active !== "foot") return false;
   if (hud.inClub) {
     const dx = worldState.px - DOOR_IN.x;
     const dz = worldState.pz - DOOR_IN.z;
