@@ -85,8 +85,12 @@ interface HudState {
   setInClub: (v: boolean) => void;
   toggleControlsVisible: () => void;
   setStolenCar: (v: { color: string; style: CarStyle } | null) => void;
+  setLookSensitivity: (v: number) => void;
   vehicleName: () => string;
 }
+
+const MIN_LOOK_SENS = 0.4;
+const MAX_LOOK_SENS = 2.5;
 
 // Per-frame vehicle telemetry, read by the HUD overlay. Kept out of React state on
 // the vehicles themselves (that would re-render the whole scene every frame) — only
