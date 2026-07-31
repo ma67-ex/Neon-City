@@ -80,6 +80,8 @@ body {
   #minimap { width: 100px; height: 100px; right: 10px; }
   #camsel { left: 10px; gap: 3px; }
   #camsel button { font-size: 9px; padding: 3px 6px; }
+  #sensitivity { left: 10px; top: 100px; padding: 4px 8px; }
+  #sensitivity input[type="range"] { width: 60px; }
   #hint { font-size: 13px; bottom: 80px; padding: 6px 14px; }
   #controls { display: none; }
 }
