@@ -79,6 +79,13 @@ function Wing({ side, mat, tipMat }: { side: 1 | -1; mat: THREE.Material; tipMat
           <boxGeometry args={[1.1, 0.9, 3.4]} />
         </mesh>
       ))}
+      {/* spoiler panels: a row on the upper wing surface, ahead of the
+          flaps — real airliners break these into several segments */}
+      {[7, 10, 13, 16].map((d) => (
+        <mesh key={d} position={[side * d, 0.53, -1]} material={DARK_MAT}>
+          <boxGeometry args={[2.2, 0.06, 2.4]} />
+        </mesh>
+      ))}
       <mesh position={[side * 26.2, 0.1, 0]} material={side === 1 ? NAV_GREEN : NAV_RED}>
         <sphereGeometry args={[0.3, 8, 8]} />
       </mesh>
@@ -103,15 +110,54 @@ function Engine({ side, cowl }: { side: 1 | -1; cowl: THREE.Material }) {
       <mesh position={[0, 0, 4.0]} rotation={[Math.PI / 2, 0, 0]} material={DARK_MAT}>
         <cylinderGeometry args={[2.05, 2.05, 0.6, 20]} />
       </mesh>
-      {Array.from({ length: 10 }, (_, i) => (
-        <mesh key={i} position={[0, 0, 3.9]} rotation={[0, 0, (i * Math.PI) / 5]} material={CHROME_MAT}>
-          <boxGeometry args={[0.22, 3.9, 0.1]} />
+      {/* fan turbine: 18 blades (was 10 — a real high-bypass fan reads as a
+          dense disc, not a pinwheel) around a forward-pointing spinner cone,
+          each blade pitched a few degrees like a real fan's angle of attack */}
+      {Array.from({ length: 18 }, (_, i) => (
+        <mesh
+          key={i}
+          position={[0, 0, 3.85]}
+          rotation={[0.18, 0, (i * Math.PI) / 9]}
+          material={CHROME_MAT}
+        >
+          <boxGeometry args={[0.16, 3.85, 0.08]} />
         </mesh>
       ))}
+      <mesh position={[0, 0, 4.15]} rotation={[Math.PI / 2, 0, 0]} material={CHROME_MAT} castShadow>
+        <coneGeometry args={[0.42, 1.3, 14]} />
+      </mesh>
       {/* exhaust nozzle */}
       <mesh position={[0, 0, -5.1]} rotation={[Math.PI / 2, 0, 0]} material={DARK_MAT}>
         <cylinderGeometry args={[1.5, 1.7, 1.6, 18]} />
       </mesh>
+    </group>
+  );
+}
+
+const TREAD_MAT = new THREE.MeshStandardMaterial({ color: "#26282c", roughness: 0.85 });
+
+// A tyre + chrome hub caps on both faces + two tread-groove rings sunk into
+// the rolling surface — the codebase's "one shared piece beats N one-off
+// meshes" rule (see components/City.tsx's canvasTex()) applied to wheels
+// instead of textures. Local frame: cylinder axis is Y before the group's own
+// Z-rotation lays it on its side, same convention the old inline tyre meshes
+// used, so MainGear/NoseGear position it identically to before.
+function Wheel({ x, y, z, radius, width }: { x: number; y: number; z: number; radius: number; width: number }) {
+  return (
+    <group position={[x, y, z]} rotation={[0, 0, Math.PI / 2]}>
+      <mesh material={TIRE_MAT} castShadow>
+        <cylinderGeometry args={[radius, radius, width, 16]} />
+      </mesh>
+      {[1, -1].map((tw) => (
+        <mesh key={`ring${tw}`} position={[0, tw * width * 0.22, 0]} rotation={[Math.PI / 2, 0, 0]} material={TREAD_MAT}>
+          <torusGeometry args={[radius * 0.96, 0.045, 6, 24]} />
+        </mesh>
+      ))}
+      {[1, -1].map((s) => (
+        <mesh key={`hub${s}`} position={[0, s * (width / 2 + 0.03), 0]} material={CHROME_MAT}>
+          <cylinderGeometry args={[radius * 0.4, radius * 0.4, 0.06, 14]} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -126,15 +172,7 @@ function MainGear({ x }: { x: number }) {
       </mesh>
       {[1.6, -1.6].map((dz) =>
         [1, -1].map((s) => (
-          <mesh
-            key={`${dz}:${s}`}
-            position={[s * 0.95, -AIRLINER_GROUND_Y + 1.35, dz]}
-            rotation={[0, 0, Math.PI / 2]}
-            material={TIRE_MAT}
-            castShadow
-          >
-            <cylinderGeometry args={[1.35, 1.35, 0.62, 16]} />
-          </mesh>
+          <Wheel key={`${dz}:${s}`} x={s * 0.95} y={-AIRLINER_GROUND_Y + 1.35} z={dz} radius={1.35} width={0.62} />
         ))
       )}
     </group>
@@ -148,15 +186,7 @@ function NoseGear() {
         <cylinderGeometry args={[0.3, 0.36, AIRLINER_GROUND_Y - 0.95 + 1.2, 10]} />
       </mesh>
       {[1, -1].map((s) => (
-        <mesh
-          key={s}
-          position={[s * 0.55, -AIRLINER_GROUND_Y + 0.95, 0]}
-          rotation={[0, 0, Math.PI / 2]}
-          material={TIRE_MAT}
-          castShadow
-        >
-          <cylinderGeometry args={[0.95, 0.95, 0.5, 14]} />
-        </mesh>
+        <Wheel key={s} x={s * 0.55} y={-AIRLINER_GROUND_Y + 0.95} z={0} radius={0.95} width={0.5} />
       ))}
       <mesh position={[0, -AIRLINER_GROUND_Y + 1.6, 0.6]} material={NAV_WHITE}>
         <sphereGeometry args={[0.28, 8, 8]} />
@@ -189,6 +219,12 @@ export function AirlinerMesh({
       </mesh>
       <mesh position={[0, 1.35, 24.2]} rotation={[0.22, 0, 0]} material={COCKPIT_MAT}>
         <boxGeometry args={[4.0, 1.5, 3.2]} />
+      </mesh>
+      {/* radome: the dark composite tip housing the weather radar, ahead of
+          the cockpit on every real airliner — reads as a small dark cap
+          nested into the nose sphere's foremost point */}
+      <mesh position={[0, -0.15, 27.7]} scale={[0.85, 0.8, 1]} material={DARK_MAT}>
+        <sphereGeometry args={[0.95, 14, 10]} />
       </mesh>
       {/* upswept tail cone */}
       <mesh position={[0, 1.5, -28]} rotation={[Math.PI / 2 - 0.1, 0, 0]} material={skin} castShadow>
@@ -230,9 +266,20 @@ export function AirlinerMesh({
 
       {/* empennage: fin + stabilizers (fin canted on the broken airframe) */}
       <group position={[0, 4.6, -25]} rotation={[0, 0, broken ? 0.22 : 0]}>
-        <mesh position={[0, 5.4, -1.5]} rotation={[-0.42, 0, 0]} material={paint} castShadow>
-          <boxGeometry args={[0.9, 13, 8]} />
-        </mesh>
+        <group position={[0, 5.4, -1.5]} rotation={[-0.42, 0, 0]}>
+          <mesh material={paint} castShadow>
+            <boxGeometry args={[0.9, 13, 8]} />
+          </mesh>
+          {/* tail logo: a livery-coloured mark on both faces of the fin, the
+              far-off silhouette cue real airlines use so their fleet reads
+              distinct even nose-on or from across the apron */}
+          {!broken &&
+            [1, -1].map((s) => (
+              <mesh key={s} position={[s * 0.47, 3.2, 0]} rotation={[0, s > 0 ? Math.PI / 2 : -Math.PI / 2, 0]} material={NAV_WHITE}>
+                <circleGeometry args={[1.5, 24]} />
+              </mesh>
+            ))}
+        </group>
         <mesh position={[0, 11.4, -4.4]} material={NAV_WHITE}>
           <sphereGeometry args={[0.3, 8, 8]} />
         </mesh>

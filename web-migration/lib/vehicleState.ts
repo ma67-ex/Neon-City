@@ -24,6 +24,9 @@ export const vehicleState: Record<VehicleKind, { x: number; z: number; h: number
   // deliberately leaves empty for it.
   plane: { x: -330, z: 40, h: Math.PI },
   helicopter: { x: -500, z: 190, h: 0 },
+  // same apron as the prop plane, offset well clear of it and of the
+  // x:-520..-90 z:100 patrol lane (components/Traffic.tsx)
+  policeJet: { x: -360, z: 75, h: Math.PI },
   // the three gate-parked wide-bodies — world coords = airport AX/AZ (-300/100)
   // + components/Airport.tsx's own GATE_XS=[-70,0,70]/GATE_Z=65 local offsets,
   // h=0 so the mounted rig's heading matches the parked (unrotated) visual

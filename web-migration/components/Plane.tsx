@@ -11,6 +11,7 @@ import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
+import { roofHeightAt } from "@/lib/buildings";
 
 // Small prop plane, parked on REGIONAL AIRPORT's apron (components/Airport.tsx)
 // and mounted by walking up + E, same as PatrolBoat.tsx — kinematic body,
@@ -49,13 +50,18 @@ export function Plane() {
 
     const k = keys.current;
     const yaw = isActive ? (k.right ? 1 : 0) - (k.left ? 1 : 0) : 0;
+    // only treat a roof as the floor once already close to it (margin below)
+    // — otherwise flying at low altitude past a tall building's footprint
+    // would snap the plane straight up onto its roof instead of just passing by
+    const roof = roofHeightAt(pos.current.x, pos.current.z);
+    const groundY = pos.current.y >= roof - 5 ? roof : 0;
     const { dx, dz, y } = stepFlight(
       fs.current,
       { forward: isActive && k.forward, back: isActive && k.back, yaw, climb: isActive && k.handbrake, descend: isActive && k.boost },
       PLANE_HANDLING,
       d,
       pos.current.y,
-      0
+      groundY
     );
     pos.current.x += dx;
     pos.current.z += dz;
@@ -96,7 +102,7 @@ export function Plane() {
       speedMs: Math.abs(fs.current.speed),
     });
 
-    const grounded = pos.current.y <= PLANE_HANDLING.groundClearance + 0.02;
+    const grounded = pos.current.y <= groundY + PLANE_HANDLING.groundClearance + 0.02;
     useHudStore.getState().setHud(Math.round(Math.abs(fs.current.speed) * 3.6), grounded);
   });
 

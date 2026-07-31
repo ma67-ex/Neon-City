@@ -32,3 +32,15 @@ export const BUILDINGS: Building[] = (() => {
   }
   return list;
 })();
+
+// Used by lib/flightPhysics.ts callers (Plane.tsx/Helicopter.tsx/
+// DrivableAirliner.tsx) so an aircraft descending onto a building's footprint
+// lands on the roof instead of falling straight through it. Linear scan over
+// 500 boxes is trivial at 6 aircraft/frame — no spatial index needed.
+export function roofHeightAt(x: number, z: number): number {
+  let best = 0;
+  for (const b of BUILDINGS) {
+    if (Math.abs(x - b.x) <= b.w / 2 && Math.abs(z - b.z) <= b.d / 2 && b.h > best) best = b.h;
+  }
+  return best;
+}

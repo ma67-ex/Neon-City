@@ -12,6 +12,7 @@ import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { AirlinerMesh } from "@/components/Airliner";
+import { roofHeightAt } from "@/lib/buildings";
 
 // Any statically parked wide-body the player can walk up to and fly — same
 // mount-by-E, kinematic-position rig as components/Plane.tsx and
@@ -48,13 +49,17 @@ export function DrivableAirliner({ id, liveryColor, cargo }: { id: AirlinerId; l
 
     const k = keys.current;
     const yaw = isActive ? (k.right ? 1 : 0) - (k.left ? 1 : 0) : 0;
+    // see Plane.tsx's identical comment: only respect a roof as the floor
+    // once already close to it
+    const roof = roofHeightAt(pos.current.x, pos.current.z);
+    const groundY = pos.current.y >= roof - 5 ? roof : 0;
     const { dx, dz, y } = stepFlight(
       fs.current,
       { forward: isActive && k.forward, back: isActive && k.back, yaw, climb: isActive && k.handbrake, descend: isActive && k.boost },
       AIRLINER_HANDLING,
       d,
       pos.current.y,
-      0
+      groundY
     );
     pos.current.x += dx;
     pos.current.z += dz;
@@ -96,7 +101,7 @@ export function DrivableAirliner({ id, liveryColor, cargo }: { id: AirlinerId; l
       chaseHeight: 18,
     });
 
-    const grounded = pos.current.y <= AIRLINER_HANDLING.groundClearance + 0.02;
+    const grounded = pos.current.y <= groundY + AIRLINER_HANDLING.groundClearance + 0.02;
     useHudStore.getState().setHud(Math.round(Math.abs(fs.current.speed) * 3.6), grounded);
   });
 

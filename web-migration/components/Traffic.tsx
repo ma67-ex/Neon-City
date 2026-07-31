@@ -44,12 +44,21 @@ interface Lane {
 // (VEHICLE_ONLY curb at cx±40, see lib/collisionGroups.ts), so a lane anywhere
 // off that grid drives straight into a curb. `lane` (the fixed cross-axis
 // value) is therefore always an odd multiple of 50.
+// AIRPORT_MIN: components/Airport.tsx's fence sits at world x=-60 (AX=-300 +
+// FENCE_X=240), with its gate opening centred exactly on the z=50 road line
+// (GATE_CZ) — an x-axis lane running to the old min=-85 drove straight
+// through that gate and out the other side, reading as "NPC traffic wanders
+// into the airport and comes back." Every x-axis lane below is clamped to
+// stay clear of the fence instead (z-axis lanes are fixed at x=50/-50 and
+// never get anywhere near the airport's x=-540..-60 footprint, so they don't
+// need it).
+const AIRPORT_MIN = -55;
 const LANES: Lane[] = [
-  { axis: "x", lane: 50, min: -85, max: 85, speed: 10, color: "#8b93a1" },
-  { axis: "x", lane: -50, min: -85, max: 85, speed: 13, color: "#3a3f4a" },
+  { axis: "x", lane: 50, min: AIRPORT_MIN, max: 85, speed: 10, color: "#8b93a1" },
+  { axis: "x", lane: -50, min: AIRPORT_MIN, max: 85, speed: 13, color: "#3a3f4a" },
   { axis: "z", lane: 50, min: -85, max: 85, speed: 9, color: "#1f4a7a" },
   { axis: "z", lane: -50, min: -85, max: 85, speed: 11, color: "#7a2020" },
-  { axis: "x", lane: 150, min: -85, max: 85, speed: 7, color: "#2a5a3a", kind: "bus" },
+  { axis: "x", lane: 150, min: AIRPORT_MIN, max: 85, speed: 7, color: "#2a5a3a", kind: "bus" },
   // patrol the police-station neighborhood (lib/landmarks.ts POLICE HARBOR,
   // x:450 z:50) — recruit into a convoy behind the player whenever a police
   // vehicle (policeCar) is being driven nearby, ported from the original's
@@ -64,15 +73,21 @@ const LANES: Lane[] = [
   // more NPC traffic — a couple more streets, plus a 2nd car on two of the
   // busiest existing ones (same lane spec, different seed stagger)
   { axis: "z", lane: 150, min: -85, max: 85, speed: 8, color: "#b33a3a", kind: "truck" },
-  { axis: "x", lane: -150, min: -85, max: 85, speed: 9, color: "#4a6a8a", kind: "jeep" },
+  { axis: "x", lane: -150, min: AIRPORT_MIN, max: 85, speed: 9, color: "#4a6a8a", kind: "jeep" },
   { axis: "z", lane: -150, min: -85, max: 85, speed: 8, color: "#8a7a3a", kind: "bus" },
-  { axis: "x", lane: 50, min: -85, max: 85, speed: 9, color: "#5a5a5a", kind: "truck" },
+  { axis: "x", lane: 50, min: AIRPORT_MIN, max: 85, speed: 9, color: "#5a5a5a", kind: "truck" },
   { axis: "z", lane: -50, min: -85, max: 85, speed: 9, color: "#3a5a5a", kind: "jeep" },
 
   // more patrol cars, out near spawn rather than only around the station,
   // so you actually run into one without driving out to POLICE HARBOR
-  { axis: "x", lane: -50, min: -85, max: 85, speed: 10, color: "#0c0c0e", police: true },
+  { axis: "x", lane: -50, min: AIRPORT_MIN, max: 85, speed: 10, color: "#0c0c0e", police: true },
   { axis: "z", lane: 50, min: -85, max: 85, speed: 10, color: "#0c0c0e", police: true },
+
+  // airport perimeter patrol: same lane mechanic, entirely inside the fence
+  // (world x -520..-90, world z 0) so it can never clip the gate/wall the
+  // way the city lanes above were fixed to avoid — steal it like any other
+  // police lane (lib/steal.ts) for "drive the airport police car" duty.
+  { axis: "x", lane: 100, min: -520, max: -90, speed: 9, color: "#0c0c0e", police: true },
 ];
 
 // Live per-lane traffic slot — same shared-singleton pattern as skyState/

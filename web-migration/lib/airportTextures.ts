@@ -72,100 +72,90 @@ export const CONCRETE_TEX = tex(256, 256, (g) => {
   }
 });
 
+// Shared by all three fuselage skins below: panel seams + rivets at 2x the
+// old 512x128 bake so they stay crisp when a player walks right up to the
+// hull instead of just driving past at a distance.
+function panelsAndRivets(g: CanvasRenderingContext2D, w: number, h: number, seam: string, rivet: string) {
+  g.strokeStyle = seam;
+  g.lineWidth = 1;
+  for (let x = 0; x < w; x += 64) {
+    g.beginPath();
+    g.moveTo(x, 0);
+    g.lineTo(x, h);
+    g.stroke();
+  }
+  for (let y = 0; y < h; y += 32) {
+    g.beginPath();
+    g.moveTo(0, y);
+    g.lineTo(w, y);
+    g.stroke();
+  }
+  g.fillStyle = rivet;
+  for (let x = 8; x < w; x += 16) for (let y = 0; y < h; y += 32) g.fillRect(x, y, 2, 2);
+}
+
+// One cabin window: dark glass, a raised light-grey frame/bezel like a real
+// riveted window surround, and a bright reflection lip on the upper pane.
+function window(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  g.fillStyle = "#cfd5dc";
+  g.fillRect(x - 2, y - 2, w + 4, h + 4);
+  g.fillStyle = "#0e131c";
+  g.fillRect(x, y, w, h);
+  g.fillStyle = "rgba(195,222,248,.5)";
+  g.fillRect(x, y, w, Math.max(2, h * 0.28));
+}
+
 // Airliner fuselage skin: painted aluminium with riveted panel seams and a
 // baked cabin window row. One horizontal strip repeated along the fuselage —
 // far cheaper than ~90 window meshes per aircraft, and sharper up close.
-export const FUSELAGE_TEX = tex(512, 128, (g) => {
+export const FUSELAGE_TEX = tex(1024, 256, (g) => {
   g.fillStyle = "#eef2f6";
-  g.fillRect(0, 0, 512, 128);
-  // panel seams
-  g.strokeStyle = "rgba(150,158,170,.55)";
-  g.lineWidth = 1;
-  for (let x = 0; x < 512; x += 32) {
-    g.beginPath();
-    g.moveTo(x, 0);
-    g.lineTo(x, 128);
-    g.stroke();
-  }
-  for (let y = 0; y < 128; y += 16) {
-    g.beginPath();
-    g.moveTo(0, y);
-    g.lineTo(512, y);
-    g.stroke();
-  }
-  // rivets
-  g.fillStyle = "rgba(140,148,160,.5)";
-  for (let x = 4; x < 512; x += 8) for (let y = 0; y < 128; y += 16) g.fillRect(x, y, 1, 1);
-  // cabin windows (dark, with a bright reflection lip)
-  for (let x = 26; x < 486; x += 16) {
-    g.fillStyle = "#171d26";
-    g.fillRect(x, 56, 8, 9);
-    g.fillStyle = "rgba(190,215,240,.45)";
-    g.fillRect(x, 56, 8, 2);
-  }
+  g.fillRect(0, 0, 1024, 256);
+  panelsAndRivets(g, 1024, 256, "rgba(150,158,170,.55)", "rgba(140,148,160,.5)");
+  for (let x = 52; x < 972; x += 32) window(g, x, 112, 16, 18);
   // door outlines
   g.strokeStyle = "rgba(120,128,140,.8)";
-  g.lineWidth = 2;
-  for (const x of [12, 236, 480]) g.strokeRect(x, 44, 14, 34);
-  noise(g, 512, 128, 2500, 0.05);
+  g.lineWidth = 3;
+  for (const x of [24, 472, 960]) g.strokeRect(x, 88, 28, 68);
+  noise(g, 1024, 256, 6000, 0.05);
 });
 
 // Freighter skin: no cabin window row, a main-deck cargo door instead.
-export const CARGO_TEX = tex(512, 128, (g) => {
+export const CARGO_TEX = tex(1024, 256, (g) => {
   g.fillStyle = "#d9dde2";
-  g.fillRect(0, 0, 512, 128);
-  g.strokeStyle = "rgba(150,158,170,.6)";
-  g.lineWidth = 1;
-  for (let x = 0; x < 512; x += 32) {
-    g.beginPath();
-    g.moveTo(x, 0);
-    g.lineTo(x, 128);
-    g.stroke();
-  }
-  for (let y = 0; y < 128; y += 16) {
-    g.beginPath();
-    g.moveTo(0, y);
-    g.lineTo(512, y);
-    g.stroke();
-  }
-  g.fillStyle = "rgba(140,148,160,.5)";
-  for (let x = 4; x < 512; x += 8) for (let y = 0; y < 128; y += 16) g.fillRect(x, y, 1, 1);
+  g.fillRect(0, 0, 1024, 256);
+  panelsAndRivets(g, 1024, 256, "rgba(150,158,170,.6)", "rgba(140,148,160,.5)");
+  // cockpit-window-only up front (freighters keep the flight deck glazing)
+  for (let x = 52; x < 140; x += 32) window(g, x, 112, 16, 18);
   g.strokeStyle = "#6e7682";
-  g.lineWidth = 3;
-  g.strokeRect(150, 34, 190, 56); // main-deck cargo door
-  g.strokeRect(60, 78, 40, 30); // forward service door
-  noise(g, 512, 128, 2500, 0.05);
+  g.lineWidth = 5;
+  g.strokeRect(300, 68, 380, 112); // main-deck cargo door
+  g.strokeRect(120, 156, 80, 60); // forward service door
+  noise(g, 1024, 256, 6000, 0.05);
 });
 
 // Same skin, scorched and stained — the half-broken jet under repair.
-export const BURNT_FUSELAGE_TEX = tex(512, 128, (g) => {
+export const BURNT_FUSELAGE_TEX = tex(1024, 256, (g) => {
   g.fillStyle = "#c8c6c0";
-  g.fillRect(0, 0, 512, 128);
-  g.strokeStyle = "rgba(110,108,104,.6)";
-  g.lineWidth = 1;
-  for (let x = 0; x < 512; x += 32) {
-    g.beginPath();
-    g.moveTo(x, 0);
-    g.lineTo(x, 128);
-    g.stroke();
-  }
-  for (let x = 26; x < 486; x += 16) {
+  g.fillRect(0, 0, 1024, 256);
+  panelsAndRivets(g, 1024, 256, "rgba(110,108,104,.6)", "rgba(100,98,94,.4)");
+  for (let x = 52; x < 972; x += 32) {
     g.fillStyle = "#0d0f13";
-    g.fillRect(x, 56, 8, 9);
+    g.fillRect(x, 112, 16, 18);
   }
   // soot plumes trailing aft
-  for (let i = 0; i < 26; i++) {
-    const x = 150 + Math.random() * 330;
+  for (let i = 0; i < 40; i++) {
+    const x = 300 + Math.random() * 660;
     g.fillStyle = `rgba(20,18,16,${0.15 + Math.random() * 0.35})`;
     g.beginPath();
-    g.ellipse(x, 20 + Math.random() * 90, 10 + Math.random() * 40, 6 + Math.random() * 20, 0, 0, Math.PI * 2);
+    g.ellipse(x, 40 + Math.random() * 180, 20 + Math.random() * 80, 12 + Math.random() * 40, 0, 0, Math.PI * 2);
     g.fill();
   }
   // missing panels, bare frame showing through
   g.fillStyle = "#3a3d44";
-  g.fillRect(300, 30, 60, 40);
-  g.fillRect(190, 74, 44, 30);
-  noise(g, 512, 128, 4000, 0.09);
+  g.fillRect(600, 60, 120, 80);
+  g.fillRect(380, 148, 88, 60);
+  noise(g, 1024, 256, 9000, 0.09);
 });
 
 // Corrugated hangar / cargo-container steel.

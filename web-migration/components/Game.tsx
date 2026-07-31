@@ -38,6 +38,7 @@ import { Marina } from "@/components/Marina";
 import { Airport } from "@/components/Airport";
 import { Plane } from "@/components/Plane";
 import { Helicopter } from "@/components/Helicopter";
+import { PoliceJet } from "@/components/PoliceJet";
 import { DrivableAirliner } from "@/components/DrivableAirliner";
 import { LIVERIES } from "@/components/Airliner";
 import { Props } from "@/components/Props";
@@ -147,6 +148,7 @@ export default function Game() {
             <PatrolBoat />
             <Plane />
             <Helicopter />
+            <PoliceJet />
             {/* every parked wide-body is its own mountable vehicle — walk up
                 + E at any gate/bay to fly it (see components/DrivableAirliner.tsx);
                 the broken jet in the maintenance hangar is deliberately not
@@ -154,7 +156,7 @@ export default function Game() {
             <DrivableAirliner id="airliner1" liveryColor={LIVERIES[0]} />
             <DrivableAirliner id="airliner2" liveryColor={LIVERIES[1]} />
             <DrivableAirliner id="airliner3" liveryColor={LIVERIES[2]} />
-            <DrivableAirliner id="airlinerCargo" liveryColor={LIVERIES[4]} cargo />
+            <DrivableAirliner id="airlinerCargo" liveryColor={LIVERIES[3]} cargo />
             <PoliceStation />
             <MizuRestaurant />
             <Marina />

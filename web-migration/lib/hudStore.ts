@@ -8,7 +8,7 @@ import type { CarStyle } from "@/components/SupercarBody";
 // (components/AirportLife.tsx's BrokenJet) — it has no vehicleState entry, no
 // mount trigger, nothing to fly, by design (wing off, under repair forever).
 export type AirlinerId = "airliner1" | "airliner2" | "airliner3" | "airlinerCargo";
-export type VehicleKind = "car" | "boat" | "bike" | "policeCar" | "patrolBoat" | "plane" | "helicopter" | AirlinerId;
+export type VehicleKind = "car" | "boat" | "bike" | "policeCar" | "patrolBoat" | "plane" | "helicopter" | "policeJet" | AirlinerId;
 export type ActiveMode = VehicleKind | "foot";
 export const CAM_MODES = ["CHASE", "COCKPIT", "HOOD", "CINE"] as const;
 export type CamMode = 0 | 1 | 2 | 3;
@@ -31,10 +31,11 @@ export const VEHICLE_NAMES: Record<VehicleKind, string> = {
   patrolBoat: "HARBOR PATROL",
   plane: "SKY RUNNER",
   helicopter: "HARBOR CHOPPER",
-  airliner1: "JETLINER — GATE 2",
-  airliner2: "JETLINER — GATE 3",
-  airliner3: "JETLINER — GATE 4",
-  airlinerCargo: "CARGO FREIGHTER",
+  policeJet: "SKY MARSHAL",
+  airliner1: "AZURE WINGS — GATE 2",
+  airliner2: "CRIMSON SKYWAY — GATE 3",
+  airliner3: "EMERALD PACIFIC — GATE 4",
+  airlinerCargo: "VANGUARD CARGO",
 };
 // hulls — anything that floats, not just the original "boat". Used wherever a
 // feature needs to exclude/include boats generically (club door, dock walking).

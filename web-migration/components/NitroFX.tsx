@@ -12,27 +12,38 @@ import { vehicleState } from "@/lib/vehicleState";
 // Player car only (index.html's specialAcc/lotSpecials idle-puff system is
 // explicitly for OTHER parked cars, not the player — not ported here).
 
-// Soft grey puff texture — same radial-gradient-canvas idiom as the
-// original's exhaustTex (index.html ~6280).
+// Wispy puff texture — several overlapping soft blobs instead of one perfect
+// radial gradient, so a puff reads as an irregular cloud wisp rather than a
+// uniform disc once it's scaled up over its lifetime. Same canvas-texture
+// idiom as the original's exhaustTex (index.html ~6280), just with more
+// baked-in shape detail.
 const PUFF_TEX = (() => {
   if (typeof document === "undefined") return null; // SSR
   const c = document.createElement("canvas");
   c.width = c.height = 64;
   const g = c.getContext("2d")!;
-  const r = g.createRadialGradient(32, 32, 3, 32, 32, 30);
-  r.addColorStop(0, "rgba(58,60,68,.75)");
-  r.addColorStop(1, "rgba(58,60,68,0)");
-  g.fillStyle = r;
-  g.fillRect(0, 0, 64, 64);
+  const blobs = [
+    [32, 32, 30, 0.7],
+    [20, 24, 16, 0.55],
+    [44, 26, 15, 0.5],
+    [26, 42, 17, 0.55],
+    [40, 40, 14, 0.45],
+  ] as const;
+  for (const [bx, by, br, alpha] of blobs) {
+    const r = g.createRadialGradient(bx, by, br * 0.1, bx, by, br);
+    r.addColorStop(0, `rgba(58,60,68,${alpha})`);
+    r.addColorStop(1, "rgba(58,60,68,0)");
+    g.fillStyle = r;
+    g.fillRect(0, 0, 64, 64);
+  }
   return new THREE.CanvasTexture(c);
 })();
 
-// Scaled down from the original's 70 — that pool was shared by a whole city
-// of idling "special" cars plus the player; this one is nitro puffs off a
-// single player car, so far fewer can ever be live at once.
-const PUFF_COUNT = 24;
+// Scaled up from the original 24 — a richer, denser trail now that puffs
+// also vary in tint and spin instead of being 24 copies of one grey disc.
+const PUFF_COUNT = 36;
 
-type Puff = { life: number; max: number; vx: number; vy: number; vz: number };
+type Puff = { life: number; max: number; vx: number; vy: number; vz: number; rot: number; rotSpeed: number };
 
 // Matches Car.tsx's carBox.z (4.6) — the original reads this per-vehicle off
 // v.g.userData.len, but the player car here is always the one fixed length.
@@ -46,7 +57,7 @@ export function NitroFX() {
   // idiom as Car.tsx's car/nitroFuel/fallSpeed refs — not useMemo/useState,
   // this is aged and rewritten every frame, not derived render output
   const puffsRef = useRef<Puff[]>(
-    Array.from({ length: PUFF_COUNT }, () => ({ life: 0, max: 1.3, vx: 0, vy: 0, vz: 0 }))
+    Array.from({ length: PUFF_COUNT }, () => ({ life: 0, max: 1.3, vx: 0, vy: 0, vz: 0, rot: 0, rotSpeed: 0 }))
   );
   const spawnAcc = useRef(0);
   const wasActive = useRef(false);
@@ -64,11 +75,18 @@ export function NitroFX() {
       p.vx = (Math.random() - 0.5) * 0.5;
       p.vz = (Math.random() - 0.5) * 0.5;
       p.vy = 0.35 + Math.random() * 0.45;
+      p.rot = Math.random() * Math.PI * 2;
+      p.rotSpeed = (Math.random() - 0.5) * 1.6;
       const s = puffRefs.current[i];
       if (s) {
         s.visible = true;
         s.position.set(x, y, z);
         s.scale.set(0.35, 0.35, 1);
+        s.material.rotation = p.rot;
+        // tint variance — light exhaust vapour to darker soot, not 36 copies
+        // of one uniform grey disc
+        const tone = 0.55 + Math.random() * 0.55;
+        s.material.color.setRGB(tone, tone, tone * 1.04);
       }
       return;
     }
@@ -101,6 +119,8 @@ export function NitroFX() {
         const t = 1 - p.life / p.max;
         const sc = 0.35 + t * 1.8;
         s.scale.set(sc, sc, 1);
+        p.rot += p.rotSpeed * dt;
+        s.material.rotation = p.rot;
         (s.material as THREE.SpriteMaterial).opacity = (p.life / p.max) * 0.5;
       }
     }

@@ -11,6 +11,7 @@ import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
+import { roofHeightAt } from "@/lib/buildings";
 
 // Parked on REGIONAL AIRPORT's helipad (components/Airport.tsx), mounted by
 // walking up + E — near-identical rig to Plane.tsx, sharing lib/flightPhysics.ts
@@ -44,13 +45,18 @@ export function Helicopter() {
 
     const k = keys.current;
     const yaw = isActive ? (k.right ? 1 : 0) - (k.left ? 1 : 0) : 0;
+    // see Plane.tsx's identical comment: only respect a roof as the floor
+    // once already close to it, so drifting under a building at low altitude
+    // doesn't snap the heli straight up onto its roof
+    const roof = roofHeightAt(pos.current.x, pos.current.z);
+    const groundY = pos.current.y >= roof - 5 ? roof : 0;
     const { dx, dz, y } = stepFlight(
       fs.current,
       { forward: isActive && k.forward, back: isActive && k.back, yaw, climb: isActive && k.handbrake, descend: isActive && k.boost },
       HELI_HANDLING,
       d,
       pos.current.y,
-      0
+      groundY
     );
     pos.current.x += dx;
     pos.current.z += dz;
@@ -65,7 +71,7 @@ export function Helicopter() {
 
     // main + tail rotor spin — always turning while airborne or active, idle
     // slower on the ground (engine-running look), cosmetic only
-    const spinning = isActive || pos.current.y > HELI_HANDLING.groundClearance + 0.05;
+    const spinning = isActive || pos.current.y > groundY + HELI_HANDLING.groundClearance + 0.05;
     const rotorSpeed = spinning ? 14 : 0;
     if (rotorRef.current) rotorRef.current.rotation.y += rotorSpeed * d;
     if (tailRotorRef.current) tailRotorRef.current.rotation.x += rotorSpeed * 1.6 * d;
@@ -95,7 +101,7 @@ export function Helicopter() {
       speedMs: Math.abs(fs.current.speed),
     });
 
-    const grounded = pos.current.y <= HELI_HANDLING.groundClearance + 0.02;
+    const grounded = pos.current.y <= groundY + HELI_HANDLING.groundClearance + 0.02;
     useHudStore.getState().setHud(Math.round(Math.abs(fs.current.speed) * 3.6), grounded);
   });
 

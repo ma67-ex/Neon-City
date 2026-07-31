@@ -7,6 +7,12 @@ import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { weatherState, pickWeather } from "@/lib/weatherState";
 import { coatScene, weatherCoatUniforms } from "@/lib/weatherCoat";
+import { requestPlayerTeleport } from "@/lib/playerTeleport";
+import { vehicleState } from "@/lib/vehicleState";
+if (typeof window !== "undefined") {
+  (window as unknown as { __ncdTp: typeof requestPlayerTeleport }).__ncdTp = requestPlayerTeleport;
+  (window as unknown as { __ncdVeh: typeof vehicleState }).__ncdVeh = vehicleState;
+}
 
 // Rendered after <SkyCycle/> in Game.tsx so this useFrame runs after its
 // day/night one each frame: SkyCycle owns scene.fog's base color/near/far off
