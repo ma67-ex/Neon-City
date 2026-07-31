@@ -63,6 +63,9 @@ export function Player() {
   const { camera } = useThree();
 
   const foot = useRef({ h: START.h, speed: 0, vy: 0 });
+  // world-space m/s left over from a vehicle bailout, decays via SLIDE_DRAG —
+  // see the teleport-consumption block and the movement composition below
+  const slide = useRef({ x: 0, z: 0 });
   // The chase camera's own yaw, tracked separately from the character's
   // heading so input can be read relative to where the camera is actually
   // looking. Vehicles keep using their own heading directly — this is on-foot
