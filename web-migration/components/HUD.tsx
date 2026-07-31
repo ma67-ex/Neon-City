@@ -87,6 +87,20 @@ export function HUD() {
         ))}
       </div>
 
+      <div id="sensitivity">
+        <label htmlFor="sensSlider">LOOK SENS</label>
+        <input
+          id="sensSlider"
+          type="range"
+          min={0.4}
+          max={2.5}
+          step={0.05}
+          value={lookSensitivity}
+          onChange={(e) => setLookSensitivity(parseFloat(e.target.value))}
+        />
+        <span>{lookSensitivity.toFixed(2)}x</span>
+      </div>
+
       <div id="controls" style={{ display: controlsVisible ? "block" : "none" }}>
         <b>W A S D</b> move / drive
         <br />
