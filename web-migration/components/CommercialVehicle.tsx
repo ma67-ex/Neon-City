@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RigidBody, CuboidCollider, useRapier, type RapierRigidBody, type RapierCollider } from "@react-three/rapier";
-import { VEHICLE_BODY_GROUPS } from "@/lib/collisionGroups";
+import { VEHICLE_BODY_GROUPS, VEHICLE_SWEEP_GROUPS } from "@/lib/collisionGroups";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, JEEP_HANDLING, BUS_HANDLING, TRUCK_HANDLING, type CarState, type CarHandling } from "@/lib/carPhysics";
