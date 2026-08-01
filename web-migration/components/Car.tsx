@@ -122,14 +122,17 @@ export function Car() {
     // in the game — skipping them from the sweep means the car's trajectory
     // never slides/stops on a cone, it just plows through while the solver
     // (unaffected by this query filter) still shoves the prop out of the way.
-    // filterGroups=VEHICLE_BODY_GROUPS on the sweep itself, not just the collider's
+    // filterGroups=VEHICLE_SWEEP_GROUPS on the sweep itself, not just the collider's
     // own collisionGroups tag — see Player.tsx's computeColliderMovement for
     // why the tag alone doesn't make the character-controller query skip
     // VEHICLE_ONLY colliders (airport gate gap, Airport.tsx). The extra
     // vehicle-body bit (vs. plain PLAYER_GROUPS) is what lets WATER_BOUNDARY
     // (Marina.tsx) stop the car at the water's edge without also blocking
-    // the on-foot player from walking onto the dock.
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, VEHICLE_BODY_GROUPS);
+    // the on-foot player from walking onto the dock. VEHICLE_SWEEP_GROUPS
+    // (not VEHICLE_BODY_GROUPS) additionally excludes the on-foot player from
+    // this query — see lib/collisionGroups.ts for why a parked car's own
+    // sweep otherwise pushes itself away from a player who walks into it.
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, VEHICLE_SWEEP_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
