@@ -110,11 +110,15 @@ export function CommercialVehicle({ kind, color }: { kind: CommercialKind; color
     );
 
     fallSpeed.current += GRAVITY_PULL * d;
-    // VEHICLE_BODY_GROUPS, same as Car.tsx/Bike.tsx: this rig is player-driven, so
+    // VEHICLE_SWEEP_GROUPS, same as Car.tsx/Bike.tsx: this rig is player-driven, so
     // it should pass VEHICLE_ONLY curbs/gates the way the sedan/bike do
     // rather than get stuck on them the way PoliceCar.tsx's rig does — but
     // still get stopped by WATER_BOUNDARY (Marina.tsx) at the water's edge.
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, VEHICLE_BODY_GROUPS);
+    // VEHICLE_SWEEP_GROUPS (not VEHICLE_BODY_GROUPS) additionally excludes
+    // the on-foot player from this query — see lib/collisionGroups.ts for
+    // why a parked commercial vehicle's own sweep otherwise pushes itself
+    // away from a player who walks into it.
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, VEHICLE_SWEEP_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
