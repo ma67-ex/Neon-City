@@ -100,13 +100,17 @@ export function Bike() {
     fallSpeed.current += GRAVITY_PULL * d;
     // see Car.tsx: EXCLUDE_DYNAMIC lets the bike plow through props instead of
     // sliding/stopping on them, while the solver still shoves the prop aside.
-    // filterGroups=VEHICLE_BODY_GROUPS on the sweep itself — see Player.tsx's
+    // filterGroups=VEHICLE_SWEEP_GROUPS on the sweep itself — see Player.tsx's
     // computeColliderMovement for why the collider's own collisionGroups tag
     // alone doesn't make this query skip VEHICLE_ONLY colliders (airport
     // gate gap, Airport.tsx). The extra vehicle-body bit (vs. plain
     // PLAYER_GROUPS) is what WATER_BOUNDARY (Marina.tsx) keys off to stop the
     // bike at the water's edge without also blocking the on-foot player.
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, VEHICLE_BODY_GROUPS);
+    // VEHICLE_SWEEP_GROUPS (not VEHICLE_BODY_GROUPS) additionally excludes
+    // the on-foot player from this query — see lib/collisionGroups.ts for
+    // why a parked bike's own sweep otherwise pushes itself away from a
+    // player who walks into it.
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, VEHICLE_SWEEP_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
