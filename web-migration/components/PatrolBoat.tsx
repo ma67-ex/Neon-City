@@ -6,6 +6,7 @@ import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, BOAT_HANDLING, type CarState } from "@/lib/carPhysics";
+import { NITRO_MAX, NITRO_BOOST, NITRO_ACCEL_MULT, initNitroFuel, stepNitroFuel } from "@/lib/nitro";
 import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
@@ -27,6 +28,7 @@ export function PatrolBoat() {
 
   const [save] = useState(() => loadSave()?.vehicles.patrolBoat ?? null);
   const boat = useRef<CarState>({ h: save?.h ?? vehicleState.patrolBoat.h, speed: 0, vLat: 0, steerAng: 0 });
+  const nitro = useRef(initNitroFuel());
   const pos = useRef({ x: save?.x ?? vehicleState.patrolBoat.x, z: save?.z ?? vehicleState.patrolBoat.z });
   const camPos = useRef(new THREE.Vector3(vehicleState.patrolBoat.x - 10, 5, vehicleState.patrolBoat.z - 10));
   const camLook = useRef(new THREE.Vector3());
@@ -41,10 +43,17 @@ export function PatrolBoat() {
 
     const k = keys.current;
     const steer = isActive ? (k.left ? 1 : 0) - (k.right ? 1 : 0) : 0;
+    const wantNitro = isActive && k.forward && k.boost;
+    const nitroOn = stepNitroFuel(nitro.current, wantNitro, d);
+    const handling = nitroOn
+      ? { ...BOAT_HANDLING, accel: BOAT_HANDLING.accel * NITRO_ACCEL_MULT, max: BOAT_HANDLING.max + NITRO_BOOST }
+      : BOAT_HANDLING;
+    if (isActive) useHudStore.getState().setNitro(nitro.current.fuel / NITRO_MAX, nitroOn);
+
     const { dx, dz } = stepCarPhysics(
       boat.current,
       { forward: isActive && k.forward, back: isActive && k.back, steer, handbrake: false },
-      BOAT_HANDLING,
+      handling,
       d
     );
 
