@@ -76,6 +76,13 @@ export const TOWER_POS = [
   { x: FENCE_X - TOWER_INSET, z: FENCE_Z - TOWER_INSET },
 ];
 
+// Render scale for components/FighterJet.tsx's mesh on this apron — shared by
+// the drivable jets (components/DrivableFighterJet.tsx) and by
+// lib/flightPhysics.ts's FIGHTER_JET_HANDLING.groundClearance, which is
+// derived from it (1.1 * JET_SCALE). Lives here rather than in
+// components/MilitaryBase.tsx so those callers can't drift from each other.
+export const JET_SCALE = 2.3;
+
 // Big parked jets apron — deepest part of the compound, clear of everything else.
 export const JET_APRON: { x: number; z: number; h: number }[] = [
   { x: 175, z: -80, h: Math.PI / 2 },
