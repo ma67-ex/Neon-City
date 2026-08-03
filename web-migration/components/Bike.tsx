@@ -7,6 +7,7 @@ import { VEHICLE_BODY_GROUPS, VEHICLE_SWEEP_GROUPS } from "@/lib/collisionGroups
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, BIKE_HANDLING, type CarState } from "@/lib/carPhysics";
+import { NITRO_MAX, NITRO_BOOST, NITRO_ACCEL_MULT, initNitroFuel, stepNitroFuel } from "@/lib/nitro";
 import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { fellOutOfWorld } from "@/lib/fallGuard";
@@ -37,6 +38,7 @@ export function Bike() {
 
   const [save] = useState(() => loadSave()?.vehicles.bike ?? null);
   const bike = useRef<CarState>({ h: save?.h ?? 0, speed: 0, vLat: 0, steerAng: 0 });
+  const nitro = useRef(initNitroFuel());
   const fallSpeed = useRef(0);
   const drownTime = useRef(0);
   const crashCooldown = useRef(0);
@@ -90,10 +92,19 @@ export function Bike() {
     const k = keys.current;
     const steer = isActive ? (k.left ? 1 : 0) - (k.right ? 1 : 0) : 0;
 
+    // nitro: SHIFT+forward — same rig as Car.tsx, factored into lib/nitro.ts
+    // so every vehicle shares the fuel/lock math instead of re-deriving it.
+    const wantNitro = isActive && k.forward && k.boost;
+    const nitroOn = stepNitroFuel(nitro.current, wantNitro, d);
+    const handling = nitroOn
+      ? { ...BIKE_HANDLING, accel: BIKE_HANDLING.accel * NITRO_ACCEL_MULT, max: BIKE_HANDLING.max + NITRO_BOOST }
+      : BIKE_HANDLING;
+    if (isActive) useHudStore.getState().setNitro(nitro.current.fuel / NITRO_MAX, nitroOn);
+
     const { dx, dz } = stepCarPhysics(
       bike.current,
       { forward: isActive && k.forward, back: isActive && k.back, steer, handbrake: isActive && k.handbrake },
-      BIKE_HANDLING,
+      handling,
       d
     );
 
