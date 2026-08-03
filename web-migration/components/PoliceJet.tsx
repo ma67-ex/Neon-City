@@ -6,6 +6,7 @@ import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepFlight, POLICE_JET_HANDLING, type FlightState } from "@/lib/flightPhysics";
+import { NITRO_MAX, NITRO_BOOST, NITRO_ACCEL_MULT, initNitroFuel, stepNitroFuel } from "@/lib/nitro";
 import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
@@ -27,6 +28,7 @@ export function PoliceJet() {
 
   const [save] = useState(() => loadSave()?.vehicles.policeJet ?? null);
   const fs = useRef<FlightState>({ h: save?.h ?? vehicleState.policeJet.h, pitch: 0, roll: 0, speed: 0, vy: 0 });
+  const nitro = useRef(initNitroFuel());
   const pos = useRef({
     x: save?.x ?? vehicleState.policeJet.x,
     z: save?.z ?? vehicleState.policeJet.z,
@@ -49,10 +51,18 @@ export function PoliceJet() {
     // once already close to it
     const roof = roofHeightAt(pos.current.x, pos.current.z);
     const groundY = pos.current.y >= roof - 5 ? roof : 0;
+    // nitro: SHIFT+forward, same rig as Plane.tsx (lib/nitro.ts)
+    const wantNitro = isActive && k.forward && k.boost;
+    const nitroOn = stepNitroFuel(nitro.current, wantNitro, d);
+    const handling = nitroOn
+      ? { ...POLICE_JET_HANDLING, accel: POLICE_JET_HANDLING.accel * NITRO_ACCEL_MULT, maxSpeed: POLICE_JET_HANDLING.maxSpeed + NITRO_BOOST }
+      : POLICE_JET_HANDLING;
+    if (isActive) useHudStore.getState().setNitro(nitro.current.fuel / NITRO_MAX, nitroOn);
+
     const { dx, dz, y } = stepFlight(
       fs.current,
       { forward: isActive && k.forward, back: isActive && k.back, yaw, climb: isActive && k.handbrake, descend: isActive && k.boost },
-      POLICE_JET_HANDLING,
+      handling,
       d,
       pos.current.y,
       groundY
