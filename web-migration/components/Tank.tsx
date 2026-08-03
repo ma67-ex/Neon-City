@@ -6,6 +6,7 @@ import { RigidBody, CuboidCollider, useRapier, type RapierRigidBody, type Rapier
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, TANK_HANDLING, type CarState } from "@/lib/carPhysics";
+import { NITRO_MAX, NITRO_BOOST, NITRO_ACCEL_MULT, initNitroFuel, stepNitroFuel } from "@/lib/nitro";
 import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { fellOutOfWorld } from "@/lib/fallGuard";
@@ -122,6 +123,7 @@ export function Tank() {
 
   const [save] = useState(() => loadSave()?.vehicles.tank ?? null);
   const car = useRef<CarState>({ h: save?.h ?? vehicleState.tank.h, speed: 0, vLat: 0, steerAng: 0 });
+  const nitro = useRef(initNitroFuel());
   const fallSpeed = useRef(0);
   const crashCooldown = useRef(0);
   const fireCooldown = useRef(0);
@@ -166,10 +168,17 @@ export function Tank() {
 
     const k = keys.current;
     const steer = isActive ? (k.left ? 1 : 0) - (k.right ? 1 : 0) : 0;
+    const wantNitro = isActive && k.forward && k.boost;
+    const nitroOn = stepNitroFuel(nitro.current, wantNitro, d);
+    const handling = nitroOn
+      ? { ...TANK_HANDLING, accel: TANK_HANDLING.accel * NITRO_ACCEL_MULT, max: TANK_HANDLING.max + NITRO_BOOST }
+      : TANK_HANDLING;
+    if (isActive) useHudStore.getState().setNitro(nitro.current.fuel / NITRO_MAX, nitroOn);
+
     const { dx, dz } = stepCarPhysics(
       car.current,
       { forward: isActive && k.forward, back: isActive && k.back, steer, handbrake: isActive && k.handbrake },
-      TANK_HANDLING,
+      handling,
       d
     );
 
