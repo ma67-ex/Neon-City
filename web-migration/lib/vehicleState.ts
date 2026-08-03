@@ -41,6 +41,12 @@ export const vehicleState: Record<VehicleKind, { x: number; z: number; h: number
   // deliberately leaves empty for it.
   plane: { x: -780, z: 40, h: Math.PI },
   helicopter: { x: -950, z: 190, h: 0 },
+  // FORT NEON's gunship, on the compound's SECOND helipad — world coords =
+  // BASE_X/BASE_Z (1670/-400, lib/militaryBase.ts) + HELIPAD_POS[1]'s own
+  // local (20/70). components/MilitaryBase.tsx parks its decorative
+  // ParkedChopper on HELIPAD_POS[0], so this is the pad that was always
+  // marked and always empty.
+  militaryHeli: { x: 1690, z: -330, h: Math.PI },
   // same apron as the prop plane, offset well clear of it and of the
   // x:-970..-540 z:100 patrol lane (components/Traffic.tsx)
   policeJet: { x: -810, z: 75, h: Math.PI },
@@ -67,4 +73,11 @@ export const vehicleState: Record<VehicleKind, { x: number; z: number; h: number
   // lane, past the 3x3 formation of decorative ParkedTanks (see
   // lib/militaryBase.ts's BASE_X/BASE_Z=1670/-400 + local TANK_SPAWN)
   tank: { x: 1670, z: -400, h: 0 },
+  // FORT NEON's three apron fighters — world coords = BASE_X/BASE_Z
+  // (1670/-400) + lib/militaryBase.ts's own JET_APRON local offsets, headings
+  // copied from the same table so a mounted jet starts pointing exactly where
+  // the parked one was.
+  jet1: { x: 1845, z: -480, h: Math.PI / 2 },
+  jet2: { x: 1845, z: -400, h: Math.PI / 2 },
+  jet3: { x: 1845, z: -320, h: -Math.PI / 2 },
 };
