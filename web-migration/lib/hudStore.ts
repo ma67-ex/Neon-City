@@ -8,7 +8,11 @@ import type { CarStyle } from "@/components/SupercarBody";
 // (components/AirportLife.tsx's BrokenJet) — it has no vehicleState entry, no
 // mount trigger, nothing to fly, by design (wing off, under repair forever).
 export type AirlinerId = "airliner1" | "airliner2" | "airliner3" | "airlinerCargo";
-export type VehicleKind = "car" | "boat" | "boat2" | "boat3" | "bike" | "policeCar" | "policeJeep" | "patrolBoat" | "plane" | "helicopter" | "policeJet" | "jeep" | "bus" | "truck" | "tank" | AirlinerId;
+// FORT NEON's three apron fighters (components/DrivableFighterJet.tsx) — same
+// "one component parameterized over several parked airframes" shape as
+// AirlinerId above, one id per lib/militaryBase.ts JET_APRON slot.
+export type FighterJetId = "jet1" | "jet2" | "jet3";
+export type VehicleKind = "car" | "boat" | "boat2" | "boat3" | "bike" | "policeCar" | "policeJeep" | "patrolBoat" | "plane" | "helicopter" | "militaryHeli" | "policeJet" | "jeep" | "bus" | "truck" | "tank" | AirlinerId | FighterJetId;
 export type ActiveMode = VehicleKind | "foot";
 export const CAM_MODES = ["CHASE", "COCKPIT", "HOOD", "CINE"] as const;
 export type CamMode = 0 | 1 | 2 | 3;
@@ -36,6 +40,10 @@ export const VEHICLE_NAMES: Record<VehicleKind, string> = {
   patrolBoat: "HARBOR PATROL",
   plane: "SKY RUNNER",
   helicopter: "HARBOR CHOPPER",
+  // FORT NEON's own chopper, on the second helipad lib/militaryBase.ts always
+  // defined but nothing ever filled (components/MilitaryBase.tsx parks a
+  // decorative one on the first)
+  militaryHeli: "FORT NEON GUNSHIP",
   policeJet: "SKY MARSHAL",
   // parked/stealable commercial traffic (components/CommercialVehicle.tsx) —
   // mountable via E like policeCar/patrolBoat, not in the B-cycle CYCLE array
@@ -47,6 +55,10 @@ export const VEHICLE_NAMES: Record<VehicleKind, string> = {
   airliner2: "CRIMSON SKYWAY — GATE 3",
   airliner3: "EMERALD PACIFIC — GATE 4",
   airlinerCargo: "VANGUARD CARGO",
+  // FORT NEON's apron fighters — the fastest airframes in the game
+  jet1: "FALCON 01",
+  jet2: "FALCON 02",
+  jet3: "FALCON 03",
 };
 // hulls — anything that floats, not just the original "boat". Used wherever a
 // feature needs to exclude/include boats generically (club door, dock walking).
