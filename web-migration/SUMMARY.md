@@ -2043,61 +2043,72 @@ each phase.
     explicitly skipped since Milestone 11 (a meaningfully bigger state
     machine than the current straight-follow convoy AI).
 
-### Phase F — FORT NEON follow-ups (7 tasks)
+### Phase F — FORT NEON follow-ups (7 tasks, 4 shipped 2026-08-04)
 
 Context: a review pass over Milestone 24/25's base (`lib/militaryBase.ts`,
 `components/MilitaryBase.tsx`, `components/TankCombat.tsx`, `lib/
-tankShell.ts`). None of these are regressions — they're gaps between what
-the compound currently *is* and what its own set dressing already promises.
-Ordered smallest-effort-first, not biggest-first, since the top three are
-each a handful of lines.
+tankShell.ts`). None of these were regressions — they were gaps between what
+the compound was and what its own set dressing already promised.
 
-- [ ] 15. **Tank shells only hit the player's sedan, never any other vehicle
-      they're driving** — `components/TankCombat.tsx`'s per-frame hit-test
-      reads `vehicleState.car` directly, so a player in the bike/police car/
-      commercial vehicle/boat is immune to a direct hit. Fix is small and
-      matches an existing pattern: resolve the target off
-      `useHudStore.getState().active` instead of hardcoding `.car`, the same
-      way `lib/pedestrianHit.ts` already routes a hit to whichever vehicle
-      is live. (Pedestrians and the base's own parked tanks/jets/soldiers
-      are also untested against shells — friendly fire would sell the war-
-      zone read, but that's a wider change than the player-vehicle fix.)
+- [x] 15. **Tank shells only hit the player's sedan, never any other vehicle
+      they're driving.** Fixed: `components/TankCombat.tsx`'s hit-test now
+      loops every `VehicleKind` except `tank` itself (`SHELLABLE`, derived
+      from `Object.keys(vehicleState)`), same generalization
+      `lib/pedestrianHit.ts` already does. The player's sedan keeps the full
+      stop/burn/stash/respawn path (`requestCarDestroy`); every other
+      player-driven vehicle gets blown out of the seat instead
+      (`requestPlayerTeleport` + `setActive("foot")`) since none of the
+      other rigs have destroy plumbing yet — no `spawnWreck` there on
+      purpose, nothing moves the real body out of the way for a wreck actor
+      to stand in for. NPC traffic hit-test untouched. Friendly fire against
+      the base's own parked tanks/jets/soldiers still not implemented —
+      named as a separate, wider change in the original write-up.
 
-- [ ] 16. **The second helipad is empty** — `HELIPAD_POS` defines two pads,
-      but `Helipads()` only spawns `ParkedChopper` at index 0. Either fill
-      it with a second parked chopper, or better: make it the spawn for a
-      *drivable* military helicopter. The only mountable heli in the game is
-      the civilian one at the airport; a base with two marked pads and no
-      flyable aircraft of its own is a visible gap.
+- [x] 16. **The second helipad was empty.** Fixed: `components/
+      Helicopter.tsx` is now parameterized over `kind`/`bodyMat` (same shape
+      as `PoliceCar.tsx`'s `kind` prop), so `HELIPAD_POS[1]` gets a real
+      *drivable* olive-drab gunship (`militaryHeli`/"FORT NEON GUNSHIP" in
+      `lib/hudStore.ts`, spawn in `lib/vehicleState.ts`) instead of a second
+      parked decoration. Ground floor for both the spawn and the live
+      per-frame floor switched from a hardcoded sea-level 0 to `groundYAt()`
+      — the previous code would have buried a heli spawned on the platform,
+      since the platform sits ~9 units above sea level.
 
-- [ ] 17. **Every soldier except the gate patrol is frozen** — `Soldier()`
-      passes `NO_ARM` for all four limb refs, so the tower guards, motor-
-      pool pair and helipad marshal are static idle poses. Only
-      `PatrolSoldier` (gate apron) actually walks. The `usePathFollower`
-      infrastructure is already imported in this file — adding two or three
-      more short patrol routes along the motor pool and barracks is
-      near-free and makes the compound read as staffed rather than staged.
+- [x] 17. **Every soldier except the gate patrol was frozen.** Fixed: 4 more
+      `PatrolSoldier` routes added — 2 walking the motor-pool lane from
+      opposite ends, 1 along the barracks frontage, 1 pacing the jet apron —
+      using the same `usePathFollower` keyframe-path infra the gate patrol
+      already used. Static `Soldier()` posts (towers, helipad marshal)
+      unchanged.
 
-- [ ] 18. **The three parked jets are decoration only** — `JET_APRON`
-      renders `FighterJetMesh` at 2.3x scale with no drive rig. Every other
-      aircraft in the game (`Plane`, `Helicopter`, `DrivableAirliner`,
-      `PoliceJet`) is walk-up-and-E mountable, so these are the one
-      exception to an otherwise consistent rule. Wiring them through
-      `stepFlight` with a military `FlightHandling` entry would follow the
-      pattern `components/DrivableAirliner.tsx` already established for
-      parameterizing one component over several parked airframes.
+- [x] 18. **The three parked jets were decoration only.** Fixed: new
+      `components/DrivableFighterJet.tsx`, parameterized over a new
+      `FighterJetId` (`jet1`/`jet2`/`jet3`, same shape as `AirlinerId`) —
+      one component covers all three apron slots, same pattern
+      `DrivableAirliner.tsx` established. New `FIGHTER_JET_HANDLING` in
+      `lib/flightPhysics.ts` (fastest/hardest-turning airframe in the game,
+      a clear step above `POLICE_JET_HANDLING`); `groundClearance` matched
+      exactly to how `MilitaryBase.tsx` used to park the decorative mesh
+      (`1.1 * JET_SCALE`) so a landed jet sits on the apron instead of
+      sinking into it. `JET_SCALE` moved from `MilitaryBase.tsx` into
+      `lib/militaryBase.ts` so the drivable rig and the (now apron-slab-
+      only) `MilitaryBase.tsx` share one definition instead of drifting.
+      `components/MilitaryBase.tsx`'s old `ParkedJets` (which rendered the
+      jets themselves) became `JetApron` (renders only the ground slab) —
+      the jets are real mountable vehicles now, mounted in `Game.tsx`, so
+      drawing decorative copies in the same slots would double-render them.
+      Got nitro too, same `lib/nitro.ts` rig as every other vehicle.
 
 - [ ] 19. **Nothing reacts to the player firing inside the compound** — the
       gate sign reads RESTRICTED AREA / DEADLY FORCE AUTHORIZED, but
       soldiers and guard towers have no alert state, no return fire, and no
-      dispatch. Even a cheap version (tower point lights flashing red, or
-      the posted soldiers turning to face the shooter) would sell the threat
-      without building a real combat AI.
+      dispatch. **Not started** — was mid-scoping (a shared alert singleton)
+      when this session ended; no file exists for it yet.
 
 - [ ] 20. **The base has no audio identity** — no klaxon, wind, or generator
       hum. The compound is silent apart from engine and tank-fire SFX, which
       makes it feel less distinct than it looks. Same idea as the club's own
-      sonic signature.
+      sonic signature. **Not started.**
 
 - [ ] 21. **The gate barrier arm is inert dressing** — deliberate as of
       Milestone 25 (the tank has to be able to drive out, so the gap has no
@@ -2105,3 +2116,23 @@ each a handful of lines.
       decision is visible rather than looking like an oversight: if the base
       ever wants a real entry beat, the arm is where it goes. **Design call,
       not a bug — leave alone unless that's wanted.**
+
+**Verification (2026-08-04 session):** `npx tsc --noEmit` and `npm run build`
+both clean/green after every change; `eslint` clean on every touched file
+(one `no-unused-vars` warning on `MilitaryBase.tsx`'s now-stale `JET_APRON`
+import, caught and removed same session). **Not live-verified in browser**
+this session — no shell was actually fired at a non-sedan vehicle, the
+gunship/fighter jets were never mounted and flown, and the new patrol routes
+were never watched running. Code-reviewed and type/build-checked only, same
+honesty flag Milestone 25 itself used for its own unverified chain.
+
+**Files added:** `components/DrivableFighterJet.tsx`.
+**Files changed:** `components/TankCombat.tsx` (generalized hit-test),
+`components/Helicopter.tsx` (`kind`/`bodyMat` params, `groundYAt` floor),
+`components/MilitaryBase.tsx` (4 new patrol routes, `ParkedJets` →
+`JetApron`, exports `OLIVE_HELI_MAT`), `components/Game.tsx` (mounts
+`militaryHeli` + 3 `DrivableFighterJet`s), `lib/hudStore.ts`
+(`militaryHeli`/`FighterJetId` additions), `lib/vehicleState.ts`
+(`militaryHeli`/`jet1`/`jet2`/`jet3` spawns), `lib/flightPhysics.ts`
+(`FIGHTER_JET_HANDLING`), `lib/militaryBase.ts` (`JET_SCALE` moved in from
+the component file).
