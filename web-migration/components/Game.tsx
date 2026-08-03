@@ -42,13 +42,14 @@ import { Plane } from "@/components/Plane";
 import { Helicopter } from "@/components/Helicopter";
 import { PoliceJet } from "@/components/PoliceJet";
 import { DrivableAirliner } from "@/components/DrivableAirliner";
+import { DrivableFighterJet } from "@/components/DrivableFighterJet";
 import { CommercialVehicle } from "@/components/CommercialVehicle";
 import { LIVERIES } from "@/components/Airliner";
 import { Props } from "@/components/Props";
 import { Headlights } from "@/components/Headlights";
 import { MouseLook } from "@/components/MouseLook";
 import { Highway } from "@/components/Highway";
-import { MilitaryBase } from "@/components/MilitaryBase";
+import { MilitaryBase, OLIVE_HELI_MAT } from "@/components/MilitaryBase";
 import { Tank } from "@/components/Tank";
 import { TankCombat } from "@/components/TankCombat";
 
@@ -166,6 +167,9 @@ export default function Game() {
             <PatrolBoat />
             <Plane />
             <Helicopter />
+            {/* FORT NEON's own gunship on the compound's second helipad —
+                same rig, olive-drab body, see lib/militaryBase.ts */}
+            <Helicopter kind="militaryHeli" bodyMat={OLIVE_HELI_MAT} />
             <PoliceJet />
             {/* every parked wide-body is its own mountable vehicle — walk up
                 + E at any gate/bay to fly it (see components/DrivableAirliner.tsx);
@@ -175,6 +179,12 @@ export default function Game() {
             <DrivableAirliner id="airliner2" liveryColor={LIVERIES[1]} />
             <DrivableAirliner id="airliner3" liveryColor={LIVERIES[2]} />
             <DrivableAirliner id="airlinerCargo" liveryColor={LIVERIES[3]} cargo />
+            {/* FORT NEON's apron fighters — decoration until now; one
+                mountable airframe per lib/militaryBase.ts JET_APRON slot
+                (components/MilitaryBase.tsx now draws only the apron slab) */}
+            <DrivableFighterJet id="jet1" />
+            <DrivableFighterJet id="jet2" />
+            <DrivableFighterJet id="jet3" />
             {/* parked commercial traffic, mountable via E like policeCar/
                 patrolBoat — see lib/vehicleState.ts for their spawn spots */}
             <CommercialVehicle kind="jeep" color="#4a6a8a" />
