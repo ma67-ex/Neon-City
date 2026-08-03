@@ -19,14 +19,13 @@ import {
   TANK_FORMATION,
   HELIPAD_POS,
   BARRACKS,
-  JET_APRON,
 } from "@/lib/militaryBase";
 import { CAMO_TEX, repeat } from "@/lib/militaryTextures";
 import { PersonFigure } from "@/components/PersonFigure";
 import { usePathFollower, type Key } from "@/components/AirportLife";
 import { HeliMesh } from "@/components/Helicopter";
 import { ParkedTank } from "@/components/Tank";
-import { FighterJetPatrol, FighterJetMesh } from "@/components/FighterJet";
+import { FighterJetPatrol } from "@/components/FighterJet";
 
 // FORT NEON — a fortified military compound at the west end of I-94
 // (components/Highway.tsx), the "really, really high security" landmark
@@ -50,7 +49,10 @@ const SIGN_MAT = new THREE.MeshStandardMaterial({ color: "#7a1414", roughness: 0
 const SPOTLIGHT_MAT = new THREE.MeshBasicMaterial({ color: "#fff6d8" });
 const BARRACKS_MAT = new THREE.MeshStandardMaterial({ color: "#5a5c50", roughness: 0.85 });
 const BARRACKS_ROOF_MAT = new THREE.MeshStandardMaterial({ color: "#2a2c26", roughness: 0.7 });
-const OLIVE_HELI_MAT = new THREE.MeshStandardMaterial({ color: "#4b5320", metalness: 0.35, roughness: 0.5 });
+// exported so the drivable gunship on HELIPAD_POS[1] (mounted in
+// components/Game.tsx via <Helicopter kind="militaryHeli">) wears the exact
+// same livery as the decorative chopper parked on HELIPAD_POS[0]
+export const OLIVE_HELI_MAT = new THREE.MeshStandardMaterial({ color: "#4b5320", metalness: 0.35, roughness: 0.5 });
 const PYLON_MAT = new THREE.MeshStandardMaterial({ color: "#454742", roughness: 0.85 });
 const BOOTH_GLASS_MAT = new THREE.MeshStandardMaterial({ color: "#0e1410", metalness: 0.6, roughness: 0.2, transparent: true, opacity: 0.55 });
 // "military texture" — the compound's ground reads as camo netting/paint
@@ -331,22 +333,16 @@ function MotorPool() {
   );
 }
 
-// Big jets parked on their own apron — reuses components/FighterJet.tsx's
-// mesh at a bigger scale (these read as heavier transport aircraft, not the
-// same fighters doing the flyover patrol).
-const JET_SCALE = 2.3;
-function ParkedJets() {
+// The jets' apron slab. The jets THEMSELVES are no longer rendered here —
+// they're real mountable aircraft now (components/DrivableFighterJet.tsx,
+// mounted in components/Game.tsx at world coords derived from JET_APRON), so
+// drawing decorative copies in the same slots would double-render each one.
+// The slab stays because it's ground dressing, not an airframe.
+function JetApron() {
   return (
-    <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[175, 0.02, 0]} receiveShadow material={JET_APRON_MAT}>
-        <planeGeometry args={[70, 220]} />
-      </mesh>
-      {JET_APRON.map((j, i) => (
-        <group key={i} position={[j.x, 1.1 * JET_SCALE, j.z]} rotation={[0, j.h, 0]} scale={JET_SCALE}>
-          <FighterJetMesh />
-        </group>
-      ))}
-    </group>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[175, 0.02, 0]} receiveShadow material={JET_APRON_MAT}>
+      <planeGeometry args={[70, 220]} />
+    </mesh>
   );
 }
 
@@ -423,6 +419,32 @@ const GATE_PATROL: Key[] = [
   { t: 12, x: -FENCE_X + 15, y: 0, z: GATE_Z0 - 8 },
 ];
 
+// Motor-pool patrol — walks the open strip between the west warehouse and the
+// tank formation. z=-60 threads the gap deliberately: the warehouse footprint
+// ends at z=-95 (z -120 centre, depth 50) and the 3x3 formation's outer row
+// sits at z=-25, so this lane is clear of both.
+const MOTOR_POOL_PATROL: Key[] = [
+  { t: 0, x: -160, y: 0, z: -60 },
+  { t: 14, x: -30, y: 0, z: -60 },
+  { t: 28, x: -160, y: 0, z: -60 },
+];
+
+// Barracks frontage — paces the length of both blocks (x 75..125, z ±40) along
+// their open side.
+const BARRACKS_PATROL: Key[] = [
+  { t: 0, x: 70, y: 0, z: 0 },
+  { t: 9, x: 132, y: 0, z: 0 },
+  { t: 18, x: 70, y: 0, z: 0 },
+];
+
+// Apron sentry — paces the line of parked jets at x=175, staying just west of
+// the apron slab so they never clip a wing.
+const APRON_PATROL: Key[] = [
+  { t: 0, x: 140, y: 0, z: -85 },
+  { t: 16, x: 140, y: 0, z: 85 },
+  { t: 32, x: 140, y: 0, z: -85 },
+];
+
 export function MilitaryBase() {
   return (
     <group position={[BASE_X, PLATFORM_Y, BASE_Z]}>
@@ -436,9 +458,17 @@ export function MilitaryBase() {
       <MotorPool />
       <Helipads />
       <Barracks />
-      <ParkedJets />
+      <JetApron />
       <PatrolChopper keys={CHOPPER_LOOP} />
+      {/* Walking patrols. Every other soldier on the base is a static idle
+          pose (see Soldier()), so these are what make the compound read as
+          staffed rather than staged — two on the motor-pool lane at opposite
+          ends of the same route, one per zone elsewhere. */}
       <PatrolSoldier keys={GATE_PATROL} />
+      <PatrolSoldier keys={MOTOR_POOL_PATROL} />
+      <PatrolSoldier keys={MOTOR_POOL_PATROL} offset={14} />
+      <PatrolSoldier keys={BARRACKS_PATROL} />
+      <PatrolSoldier keys={APRON_PATROL} />
       <FighterJetPatrol keys={JET_LOOP} />
       <FighterJetPatrol keys={JET_LOOP} offset={24} />
     </group>
