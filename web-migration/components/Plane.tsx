@@ -6,6 +6,7 @@ import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepFlight, PLANE_HANDLING, type FlightState } from "@/lib/flightPhysics";
+import { NITRO_MAX, NITRO_BOOST, NITRO_ACCEL_MULT, initNitroFuel, stepNitroFuel } from "@/lib/nitro";
 import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
@@ -32,6 +33,7 @@ export function Plane() {
 
   const [save] = useState(() => loadSave()?.vehicles.plane ?? null);
   const fs = useRef<FlightState>({ h: save?.h ?? vehicleState.plane.h, pitch: 0, roll: 0, speed: 0, vy: 0 });
+  const nitro = useRef(initNitroFuel());
   const pos = useRef({
     x: save?.x ?? vehicleState.plane.x,
     z: save?.z ?? vehicleState.plane.z,
@@ -55,10 +57,20 @@ export function Plane() {
     // would snap the plane straight up onto its roof instead of just passing by
     const roof = roofHeightAt(pos.current.x, pos.current.z);
     const groundY = pos.current.y >= roof - 5 ? roof : 0;
+    // nitro: SHIFT+forward, same trigger/fuel rig as every land vehicle
+    // (lib/nitro.ts) — SHIFT already doubles as "descend" here, so boosting
+    // while diving drains fuel too; not worth a second key just for flight.
+    const wantNitro = isActive && k.forward && k.boost;
+    const nitroOn = stepNitroFuel(nitro.current, wantNitro, d);
+    const handling = nitroOn
+      ? { ...PLANE_HANDLING, accel: PLANE_HANDLING.accel * NITRO_ACCEL_MULT, maxSpeed: PLANE_HANDLING.maxSpeed + NITRO_BOOST }
+      : PLANE_HANDLING;
+    if (isActive) useHudStore.getState().setNitro(nitro.current.fuel / NITRO_MAX, nitroOn);
+
     const { dx, dz, y } = stepFlight(
       fs.current,
       { forward: isActive && k.forward, back: isActive && k.back, yaw, climb: isActive && k.handbrake, descend: isActive && k.boost },
-      PLANE_HANDLING,
+      handling,
       d,
       pos.current.y,
       groundY
