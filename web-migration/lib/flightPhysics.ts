@@ -100,6 +100,30 @@ export const POLICE_JET_HANDLING: FlightHandling = {
   ceiling: 160,
 };
 
+// FORT NEON's three apron fighters (components/DrivableFighterJet.tsx) — a
+// clear step above POLICE_JET_HANDLING in every direction: fastest top speed,
+// hardest acceleration, tightest turn, highest ceiling. ponytail: hand-picked
+// to feel like the fastest thing in the game, not derived from anything real.
+//
+// groundClearance is NOT a taste number — components/FighterJet.tsx's mesh has
+// no landing gear (it was authored as a flyover-only airframe), and
+// components/MilitaryBase.tsx parks it at local y = 1.1 * JET_SCALE(2.3).
+// Matching that exactly is what keeps a landed fighter sitting on the apron
+// the same way the parked ones do instead of sinking into it.
+export const FIGHTER_JET_HANDLING: FlightHandling = {
+  mode: "plane",
+  maxSpeed: 78,
+  minSpeed: 0,
+  accel: 20,
+  drag: 0.08,
+  turnRate: 1.5,
+  climbRate: 12,
+  liftMinSpeed: 18,
+  fallAccel: 9,
+  groundClearance: 2.53,
+  ceiling: 190,
+};
+
 export interface FlightInput {
   forward: boolean; // throttle up
   back: boolean; // throttle down / reverse
