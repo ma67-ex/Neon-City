@@ -2042,3 +2042,66 @@ each phase.
 14. **Felony-stop convoy maneuver** — the boxing-in state machine named and
     explicitly skipped since Milestone 11 (a meaningfully bigger state
     machine than the current straight-follow convoy AI).
+
+### Phase F — FORT NEON follow-ups (7 tasks)
+
+Context: a review pass over Milestone 24/25's base (`lib/militaryBase.ts`,
+`components/MilitaryBase.tsx`, `components/TankCombat.tsx`, `lib/
+tankShell.ts`). None of these are regressions — they're gaps between what
+the compound currently *is* and what its own set dressing already promises.
+Ordered smallest-effort-first, not biggest-first, since the top three are
+each a handful of lines.
+
+- [ ] 15. **Tank shells only hit the player's sedan, never any other vehicle
+      they're driving** — `components/TankCombat.tsx`'s per-frame hit-test
+      reads `vehicleState.car` directly, so a player in the bike/police car/
+      commercial vehicle/boat is immune to a direct hit. Fix is small and
+      matches an existing pattern: resolve the target off
+      `useHudStore.getState().active` instead of hardcoding `.car`, the same
+      way `lib/pedestrianHit.ts` already routes a hit to whichever vehicle
+      is live. (Pedestrians and the base's own parked tanks/jets/soldiers
+      are also untested against shells — friendly fire would sell the war-
+      zone read, but that's a wider change than the player-vehicle fix.)
+
+- [ ] 16. **The second helipad is empty** — `HELIPAD_POS` defines two pads,
+      but `Helipads()` only spawns `ParkedChopper` at index 0. Either fill
+      it with a second parked chopper, or better: make it the spawn for a
+      *drivable* military helicopter. The only mountable heli in the game is
+      the civilian one at the airport; a base with two marked pads and no
+      flyable aircraft of its own is a visible gap.
+
+- [ ] 17. **Every soldier except the gate patrol is frozen** — `Soldier()`
+      passes `NO_ARM` for all four limb refs, so the tower guards, motor-
+      pool pair and helipad marshal are static idle poses. Only
+      `PatrolSoldier` (gate apron) actually walks. The `usePathFollower`
+      infrastructure is already imported in this file — adding two or three
+      more short patrol routes along the motor pool and barracks is
+      near-free and makes the compound read as staffed rather than staged.
+
+- [ ] 18. **The three parked jets are decoration only** — `JET_APRON`
+      renders `FighterJetMesh` at 2.3x scale with no drive rig. Every other
+      aircraft in the game (`Plane`, `Helicopter`, `DrivableAirliner`,
+      `PoliceJet`) is walk-up-and-E mountable, so these are the one
+      exception to an otherwise consistent rule. Wiring them through
+      `stepFlight` with a military `FlightHandling` entry would follow the
+      pattern `components/DrivableAirliner.tsx` already established for
+      parameterizing one component over several parked airframes.
+
+- [ ] 19. **Nothing reacts to the player firing inside the compound** — the
+      gate sign reads RESTRICTED AREA / DEADLY FORCE AUTHORIZED, but
+      soldiers and guard towers have no alert state, no return fire, and no
+      dispatch. Even a cheap version (tower point lights flashing red, or
+      the posted soldiers turning to face the shooter) would sell the threat
+      without building a real combat AI.
+
+- [ ] 20. **The base has no audio identity** — no klaxon, wind, or generator
+      hum. The compound is silent apart from engine and tank-fire SFX, which
+      makes it feel less distinct than it looks. Same idea as the club's own
+      sonic signature.
+
+- [ ] 21. **The gate barrier arm is inert dressing** — deliberate as of
+      Milestone 25 (the tank has to be able to drive out, so the gap has no
+      collider and the arm is modelled raised). Listed here only so the
+      decision is visible rather than looking like an oversight: if the base
+      ever wants a real entry beat, the arm is where it goes. **Design call,
+      not a bug — leave alone unless that's wanted.**
