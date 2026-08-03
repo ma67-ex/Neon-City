@@ -7,6 +7,9 @@ import { fireQueue } from "@/lib/tankShell";
 import { spawnDebris } from "@/lib/debris";
 import { vehicleState } from "@/lib/vehicleState";
 import { requestCarDestroy } from "@/lib/vehicleDestroy";
+import { requestPlayerTeleport } from "@/lib/playerTeleport";
+import { groundYAt } from "@/lib/marina";
+import { useHudStore, type VehicleKind } from "@/lib/hudStore";
 import { trafficPositions, RESPAWN_DELAY } from "@/components/Traffic";
 
 // Drains lib/tankShell.ts's fireQueue: a travelling shell per shot, real hit
@@ -37,6 +40,12 @@ const HIT_RADIUS2 = 3.4 * 3.4;
 // player's own car; NPC traffic gets the same duration for the visible
 // wreck even though the lane's own next-car timer (RESPAWN_DELAY) is longer.
 const WRECK_DURATION = 4;
+
+// Every player-owned vehicle is a valid shell target EXCEPT the tank itself —
+// it's the thing doing the firing, and its own shell spawns from a barrel tip
+// only ~8.5m ahead of the hull (components/Tank.tsx's BARREL_FORWARD), well
+// inside HIT_RADIUS of its own centre on the frame after launch.
+const SHELLABLE: VehicleKind[] = (Object.keys(vehicleState) as VehicleKind[]).filter((k) => k !== "tank");
 
 const SHELL_MAT = new THREE.MeshBasicMaterial({ color: "#ffd76a" });
 const EXPLOSION_MAT = new THREE.MeshBasicMaterial({ color: "#ff8a2a", transparent: true, opacity: 0.85 });
@@ -154,14 +163,36 @@ export function TankCombat() {
 
       let hit = false;
 
-      // player's own car
+      // Player-owned vehicles — including whichever one the player is
+      // actually driving. This used to test vehicleState.car and nothing
+      // else, so a player in the bike/police car/commercial vehicle/boat/
+      // aircraft was immune to a direct hit.
       if (!hit) {
-        const dx = vehicleState.car.x - s.x;
-        const dz = vehicleState.car.z - s.z;
-        if (dx * dx + dz * dz < HIT_RADIUS2) {
+        for (const kind of SHELLABLE) {
+          const v = vehicleState[kind];
+          const dx = v.x - s.x;
+          const dz = v.z - s.z;
+          if (dx * dx + dz * dz >= HIT_RADIUS2) continue;
           hit = true;
-          requestCarDestroy();
-          spawnWreck(vehicleState.car.x, vehicleState.car.y ?? 0, vehicleState.car.z, vehicleState.car.h);
+          if (kind === "car") {
+            // the full stop/burn/stash/respawn path: Car.tsx is still the
+            // only component that consumes a destroy request (see
+            // lib/vehicleDestroy.ts), and because it stashes the real body
+            // far below the map, the burning-wreck actor can stand in for it
+            // without the two overlapping.
+            requestCarDestroy();
+            spawnWreck(v.x, v.y ?? 0, v.z, v.h);
+          } else if (useHudStore.getState().active === kind) {
+            // No destroy plumbing for the other rigs yet, so the consequence
+            // is being blown out of the seat rather than losing the vehicle.
+            // Deliberately NO spawnWreck here: nothing moves the real body
+            // out of the way, so a wreck actor would just render inside the
+            // still-intact vehicle. The explosion flash below still fires.
+            requestPlayerTeleport(v.x, v.z, v.h, groundYAt(v.x, v.z) + 1);
+            useHudStore.getState().setActive("foot");
+            useHudStore.getState().showMsg("BLOWN OUT OF THE VEHICLE");
+          }
+          break;
         }
       }
 
