@@ -134,14 +134,18 @@ const SKID_MAT = new THREE.MeshStandardMaterial({ color: "#101216", roughness: 0
 export function HeliMesh({
   rotorRef,
   tailRotorRef,
+  bodyMat = BODY_MAT,
 }: {
   rotorRef: React.RefObject<THREE.Group | null>;
   tailRotorRef: React.RefObject<THREE.Group | null>;
+  // olive-drab override for FORT NEON's parked choppers (components/
+  // MilitaryBase.tsx) — every other caller keeps the civilian orange-red default
+  bodyMat?: THREE.Material;
 }) {
   return (
     <group>
       {/* cabin: lower painted shell + upper glass bubble */}
-      <mesh position={[0, -0.15, 0.3]} scale={[1.15, 0.85, 1.7]} material={BODY_MAT} castShadow>
+      <mesh position={[0, -0.15, 0.3]} scale={[1.15, 0.85, 1.7]} material={bodyMat} castShadow>
         <sphereGeometry args={[0.75, 14, 12]} />
       </mesh>
       <mesh position={[0, 0.22, 0.75]} scale={[1.0, 0.75, 1.15]} material={GLASS_MAT} castShadow>
@@ -152,7 +156,7 @@ export function HeliMesh({
       <mesh position={[0, 0.1, -1.9]} rotation={[Math.PI / 2, 0, 0]} material={TRIM_MAT} castShadow>
         <cylinderGeometry args={[0.16, 0.08, 3.0, 12]} />
       </mesh>
-      <mesh position={[0, 0.42, -3.35]} material={BODY_MAT} castShadow>
+      <mesh position={[0, 0.42, -3.35]} material={bodyMat} castShadow>
         <boxGeometry args={[0.06, 0.55, 0.5]} />
       </mesh>
 

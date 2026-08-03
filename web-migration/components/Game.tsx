@@ -47,6 +47,10 @@ import { LIVERIES } from "@/components/Airliner";
 import { Props } from "@/components/Props";
 import { Headlights } from "@/components/Headlights";
 import { MouseLook } from "@/components/MouseLook";
+import { Highway } from "@/components/Highway";
+import { MilitaryBase } from "@/components/MilitaryBase";
+import { Tank } from "@/components/Tank";
+import { TankCombat } from "@/components/TankCombat";
 
 const CYCLABLE = new Set(["car", "bike", "boat"]);
 
@@ -142,6 +146,7 @@ export default function Game() {
           <AudioEngine />
           <NitroFX />
           <Debris />
+          <TankCombat />
           <WaypointTracker />
           <Physics gravity={[0, -9.81, 0]}>
             <City />
@@ -179,6 +184,9 @@ export default function Game() {
             <MizuRestaurant />
             <Marina />
             <Airport />
+            <Highway />
+            <MilitaryBase />
+            <Tank />
             <Props />
             <Traffic />
             <Pedestrians />

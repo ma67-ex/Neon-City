@@ -85,6 +85,9 @@ interface Ragdoll {
 // PerimeterFence, a VEHICLE_ONLY collider), so an ordinary walking civilian
 // isn't stopped by it the way a car is. Reroll off any airport chunk so the
 // field's only foot traffic is the maintenance crew Airport.tsx places itself.
+// FORT NEON (lib/militaryBase.ts) needs no equivalent entry here — it sits
+// entirely past SHORE_CI on its own platform over open water, nowhere this
+// function's ci/cj range (real city land chunks) ever reaches.
 function pickCityBlock(nextCi: () => number, nextCj: () => number): [number, number] {
   for (let i = 0; i < 8; i++) {
     const ci = nextCi();

@@ -16,7 +16,7 @@ import { applyCameraRig } from "@/lib/cameraRig";
 import { teleportRequest } from "@/lib/clubTeleport";
 import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
-import { SHORE_X, DROWN_RESPAWN, clampFromWater } from "@/lib/marina";
+import { SHORE_X, DROWN_RESPAWN, clampFromWater, isOnBridgeOrBase, groundYAt } from "@/lib/marina";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
 const GRAVITY_PULL = -12;
@@ -117,8 +117,9 @@ export function Bike() {
     clampFromWater(nextPos);
 
     // drowning safety net — see Car.tsx for why this is unreachable in normal
-    // play but still worth a respawn instead of falling forever
-    if (nextPos.x >= SHORE_X) {
+    // play but still worth a respawn instead of falling forever. Exempt
+    // I-94's bridge/FORT NEON's platform, same reason Car.tsx does.
+    if (nextPos.x >= SHORE_X && !isOnBridgeOrBase(nextPos)) {
       drownTime.current += d;
       if (drownTime.current > DROWN_LIMIT) {
         drownTime.current = 0;
@@ -171,6 +172,7 @@ export function Bike() {
     body.setNextKinematicRotation(q);
 
     vehicleState.bike.x = nextPos.x;
+    vehicleState.bike.y = nextPos.y;
     vehicleState.bike.z = nextPos.z;
     vehicleState.bike.h = bike.current.h;
     vehicleState.bike.speed = bike.current.speed;
@@ -200,7 +202,12 @@ export function Bike() {
   });
 
   return (
-    <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={[save?.x ?? -20, 1, save?.z ?? 0]}>
+    <RigidBody
+      ref={bodyRef}
+      type="kinematicPosition"
+      colliders={false}
+      position={[save?.x ?? -20, groundYAt(save?.x ?? -20, save?.z ?? 0) + 1, save?.z ?? 0]}
+    >
       {/* VEHICLE_BODY_GROUPS so the player's bike passes VEHICLE_ONLY colliders
           (airport gate gap, Airport.tsx) like Car.tsx and Player.tsx do, but
           still gets stopped by WATER_BOUNDARY (Marina.tsx) at the water's edge. */}

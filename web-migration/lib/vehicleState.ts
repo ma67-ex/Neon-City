@@ -63,4 +63,8 @@ export const vehicleState: Record<VehicleKind, { x: number; z: number; h: number
   jeep: { x: -65, z: 5, h: 0 },
   truck: { x: -30, z: 45, h: Math.PI },
   bus: { x: 130, z: 15, h: Math.PI / 2 },
+  // FORT NEON's mountable tank — its own dedicated spot down the motor-pool
+  // lane, past the 3x3 formation of decorative ParkedTanks (see
+  // lib/militaryBase.ts's BASE_X/BASE_Z=1670/-400 + local TANK_SPAWN)
+  tank: { x: 1670, z: -400, h: 0 },
 };

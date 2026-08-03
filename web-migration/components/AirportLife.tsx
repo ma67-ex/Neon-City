@@ -56,7 +56,10 @@ function angLerp(from: number, to: number, k: number) {
 // Drives a group along `keys`: position, heading (from travel direction),
 // pitch (from climb rate) and bank (from turn rate). One shared hook so the
 // airliners, the work vehicles and the walking crew all move the same way.
-function usePathFollower(
+// exported so other landmarks with their own moving dressing (e.g.
+// components/MilitaryBase.tsx's fighter-jet flyover and patrolling guard)
+// can reuse the same keyframed-path/bank/pitch driver instead of a second copy
+export function usePathFollower(
   keys: Key[],
   ref: React.RefObject<THREE.Group | null>,
   opts: { offset?: number; bank?: number; pitch?: number; groundY?: number } = {}

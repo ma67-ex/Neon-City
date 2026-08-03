@@ -11,7 +11,7 @@ import { worldState } from "@/lib/worldState";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { cameraLook } from "@/lib/cameraLook";
 import { playerTeleport } from "@/lib/playerTeleport";
-import { SHORE_X } from "@/lib/marina";
+import { SHORE_X, isOnBridgeOrBase } from "@/lib/marina";
 import type { KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
 const DROWN_LIMIT = 2; // seconds in open water before respawn
@@ -120,7 +120,7 @@ export function Player() {
     // vehicle dismount teleport (lib/player.ts) or club-door teleport (lib/club.ts)
     if (playerTeleport.pending) {
       playerTeleport.pending = false;
-      body.setTranslation({ x: playerTeleport.x, y: 1, z: playerTeleport.z }, true);
+      body.setTranslation({ x: playerTeleport.x, y: playerTeleport.y, z: playerTeleport.z }, true);
       foot.current.h = playerTeleport.h;
       camYaw.current = playerTeleport.h; // snap, don't let the camera swing in from the old heading
       foot.current.speed = 0;
@@ -275,8 +275,12 @@ export function Player() {
 
     // drowning: stuck in open water (no ground under it, see Marina.tsx's shore
     // wall which normally keeps you out) past DROWN_LIMIT respawns you at START,
-    // same fix the original applies via its own onFoot water check
-    if (nextPos.x >= SHORE_X) {
+    // same fix the original applies via its own onFoot water check. Exempt
+    // I-94's bridge/FORT NEON's platform (lib/marina.ts's isOnBridgeOrBase) —
+    // walking through the base's gate is the intended way in (its own gate
+    // gap is VEHICLE_ONLY, foot traffic only), so this check has to be able
+    // to tell "standing on the platform" apart from "actually in the water."
+    if (nextPos.x >= SHORE_X && !isOnBridgeOrBase(nextPos)) {
       drownTime.current += d;
       if (drownTime.current > DROWN_LIMIT) {
         drownTime.current = 0;

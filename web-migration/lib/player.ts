@@ -49,7 +49,13 @@ export function toggleVehicleFoot(): boolean {
     // dir=[sin h, cos h] convention exactly (same rotation, undivided by dt).
     const vx = Math.sin(v.h) * (v.speed ?? 0) + Math.cos(v.h) * (v.vLat ?? 0);
     const vz = Math.cos(v.h) * (v.speed ?? 0) - Math.sin(v.h) * (v.vLat ?? 0);
-    requestPlayerTeleport(sx, sz, v.h, vx, vz);
+    // stand relative to the vehicle's own real elevation (v.y — every land
+    // vehicle now writes its actual y every frame, not just Plane/Helicopter),
+    // not a hardcoded ground-level 1: dismounting on FORT NEON's platform (or
+    // anywhere else off sea level) used to always spawn the player at world
+    // y=1, well under the platform surface, and gravity took it from there
+    // straight into the water below.
+    requestPlayerTeleport(sx, sz, v.h, (v.y ?? 0) + 1, vx, vz);
     hud.setActive("foot");
     hud.showMsg("ON FOOT");
     return true;

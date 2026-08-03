@@ -7,10 +7,22 @@ import { LANDMARKS, type Landmark } from "@/lib/landmarks";
 import { streetName } from "@/lib/streetNames";
 
 const SIZE = 460;
-// fixed world-space bounds covering every landmark with margin — a full map,
-// not a player-centred pannable one (the original's #bigmap is player-centred;
-// simplified here since the destination list already covers selection)
-const WX0 = -260, WX1 = 620, WZ0 = -320, WZ1 = 320;
+// World-space bounds covering every landmark with margin — a full map, not a
+// player-centred pannable one (the original's #bigmap is player-centred;
+// simplified here since the destination list already covers selection).
+// Derived from LANDMARKS itself rather than hand-picked: a hardcoded box
+// silently orphaned INTERNATIONAL AIRPORT's pin off the left edge the moment
+// it was added at x=-750 (the destination list still worked, the dot on the
+// map just never rendered), and did the same to FORT NEON's pin at
+// (1670,-400) — computing it from the actual landmark set means a landmark
+// added anywhere can never fall outside its own map again.
+const MARGIN = 90;
+const landmarkXs = LANDMARKS.map((l) => l.x);
+const landmarkZs = LANDMARKS.map((l) => l.z);
+const WX0 = Math.min(...landmarkXs) - MARGIN;
+const WX1 = Math.max(...landmarkXs) + MARGIN;
+const WZ0 = Math.min(...landmarkZs) - MARGIN;
+const WZ1 = Math.max(...landmarkZs) + MARGIN;
 const CELL = 100; // City.tsx CELL
 const ROAD_W = 20; // City.tsx ROAD_W
 const SHORE_X = 600; // lib/marina.ts SHORE_X

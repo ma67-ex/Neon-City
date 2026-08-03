@@ -3,6 +3,8 @@
 // enough for Car/Bike/Player but not boats) and Boat.tsx/PatrolBoat.tsx (hulls
 // need their own check, ported from the original's pierPush()/pierColliders,
 // since Boat.tsx never queries Rapier colliders at all — Milestone 2).
+import { HWY_Z, HWY_W, DECK_X1, highwayGroundY } from "@/lib/highway";
+import { BASE_X, BASE_Z, FENCE_X, FENCE_Z, baseGroundY } from "@/lib/militaryBase";
 export const SHORE_X = 600; // land/water edge near EAST MARINA — matches the original's raw SHORE_X (see lib/landmarks.ts)
 // True edge of the last solid city chunk (City.tsx: CELL=100, SHORE_CI=6 —
 // chunks at/after ci=6 render no ground). The shore wall/dock MUST start
@@ -50,6 +52,36 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
 }
 
+// True over I-94's bridge deck (lib/highway.ts) or standing on FORT NEON's
+// platform (lib/militaryBase.ts) — both real, driven-on structures that sit
+// legitimately out past LAND_EDGE_X/SHORE_X, elevated above the water below
+// them. Every "is this position actually in open water" check past the
+// coastline needs this exemption, not just clampFromWater: Car.tsx/Bike.tsx/
+// Player.tsx's own drowning timers (`nextPos.x >= SHORE_X`) hit the identical
+// blind spot — they only look at x, never elevation or "is there real
+// geometry here" — and would happily drown a car standing still on the
+// bridge deck a few seconds after it crosses x=600.
+// True ground/deck height a vehicle should spawn/reset at for its (x,z) —
+// 0 (ordinary sea-level ground) everywhere except the bridge and the base,
+// where every land vehicle's initial RigidBody position (Car.tsx and
+// friends) needs to add this instead of assuming sea level. A vehicle saved
+// while parked on the deck or the platform used to always spawn back at its
+// hardcoded ride height above y=0 on reload — well under the real surface —
+// and immediately fall through into the water below.
+export function groundYAt(x: number, z: number): number {
+  return highwayGroundY(x, z) ?? baseGroundY(x, z) ?? 0;
+}
+
+export function isOnBridgeOrBase(pos: { x: number; z: number }): boolean {
+  const onBridge = pos.z > HWY_Z - HWY_W / 2 - 5 && pos.z < HWY_Z + HWY_W / 2 + 5 && pos.x < DECK_X1 + 10;
+  const onBase =
+    pos.x > BASE_X - FENCE_X - 10 &&
+    pos.x < BASE_X + FENCE_X + 10 &&
+    pos.z > BASE_Z - FENCE_Z - 10 &&
+    pos.z < BASE_Z + FENCE_Z + 10;
+  return onBridge || onBase;
+}
+
 // Hard numeric backstop, independent of Rapier's WATER_BOUNDARY collider
 // (components/Marina.tsx, lib/collisionGroups.ts): at extreme speed (nitro,
 // 200+ km/h) the character controller's slide-along-a-wall iteration can
@@ -63,6 +95,7 @@ function clamp(v: number, lo: number, hi: number) {
 // (the full pier footprint, not just the walkway sliver) so this never
 // fights the dock itself — it only ever clamps at the true coastline.
 export function clampFromWater(pos: { x: number; z: number }) {
+  if (isOnBridgeOrBase(pos)) return;
   const onPier = pos.z > PIER_Z - 4.5 && pos.z < PIER_Z + 4.5;
   const maxX = onPier ? LAND_EDGE_X + PIER_LEN : LAND_EDGE_X;
   if (pos.x > maxX) pos.x = maxX;

@@ -1589,46 +1589,456 @@ params), `lib/carPhysics.ts` (3 new handling presets), `lib/hudStore.ts`
 (new `VehicleKind`s), `lib/landmarks.ts`, `lib/steal.ts` (kind-aware
 mapping), `lib/vehicleState.ts`, `lib/weatherCoat.ts`, `lib/weatherState.ts`.
 
-## Next up
+## Milestone 23 — Phase A: draw-call/perf pass, airport + city trees (2026-08-03)
 
-World-scale, physics, maps, building variety, and city texture/detail
-(Milestones 14-17) are now a cohesive whole city on top of the fidelity work
-in Milestones 1-13; Milestone 18 layers weather, nitro FX, commercial
-traffic, and a flyable airport on top of that; Milestone 19 adds a security
-perimeter; Milestone 20 rebuilds the airport at real scale with drivable
-wide-bodies; Milestone 21 closes three of Milestone 20's smaller named gaps;
-Milestone 22 is a large user-driven bugfix/feature session covering
-commercial-vehicle drivability, the water boundary, the airport's location
-and its gate vehicles, the (previously nonexistent) debris renderer, VENU's
-exterior, and sunny weather. Remaining, roughly by size:
-**a draw-call/perf pass on the airport specifically** — named honestly as
-not done in Milestone 20 (segment-count reduction + `InstancedMesh` for
-engine fan blades, runway/taxiway/approach lights, and cargo containers;
-up to 9 full aircraft instances is the field's real cost);
-**fly a drivable airliner end-to-end in a real browser** (mount at a gate,
-taxi, take off, land) to confirm `AIRLINER_HANDLING`'s first-guess numbers
-feel right, same as `PLANE_HANDLING`/`HELI_HANDLING` still need per
-Milestone 18's own note; **fly the small plane/helicopter and drive through
-weather at least once in a real browser** to confirm the liftoff behaviour
-and handling constants feel right; **verify Milestone 13's ragdoll hit-test
-live** (carried over, still unconfirmed); the club interior
-(`ClubInterior.tsx`) was not touched to match Milestone 22's new premium
-exterior — still the earlier interior build; the felony-stop convoy
-maneuver named and skipped in Milestone 11; a perf pass on the rest of the
-city now that Milestones 16-18 add meaningfully more meshes per
-chunk/landmark; the garage bay's side walls/roof have no collider by design
-(visual only, so pulling in never gets stuck) — worth a follow-up pass if a
-player manages to clip through a side wall at speed; the still-unconfirmed
-`dpr={1}`/`EffectComposer` render artifact from Milestone 13, still worth a
-real-hardware check; **from Milestone 22 specifically:** `laneBlocked()`
-still only checks real vehicles + pedestrians, not other traffic lanes
-against each other (AI-vs-AI collision); `PoliceCar.tsx`'s own drive rig
-still doesn't pass a `VEHICLE_BODY_GROUPS`-equivalent filter on its sweep,
-so (unlike `Car.tsx`/`Bike.tsx`/`CommercialVehicle.tsx`) it still gets stuck
-on `VEHICLE_ONLY` curbs/gates — flagged, not fixed, this session; a stolen
-jeep/bus/truck keeps its default parked livery colour rather than picking
-up the NPC lane's paint (`lib/steal.ts` only fixed the *kind* mapping — a
-`stolenCommercial` field shaped like the existing `stolenCar` one would fix
-this); the new VENU parking lot has marked bays but no actual parked-car
-meshes; lens-flare streaks / puddle-style ground reflections for sunny
-weather were discussed but not built.
+**Goal:** the two items named in "Next up" Phase A — the airport's
+never-done perf pass (flagged as far back as Milestone 20) and a city-wide
+draw-call pass now that Milestones 16-18 add meaningfully more meshes per
+chunk.
+
+**Airport: `InstancedMesh` for the four categories named in Milestone 20's
+own gap list.** `components/Airliner.tsx`'s `Engine()` had 18 separate
+`<mesh>` fan blades; now one `FanBlades` `InstancedMesh` per engine (static
+local-frame matrices, set once via `useEffect`) — up to 9 aircraft x 2
+engines was ~288 draw calls, now ~16. `components/Airport.tsx`'s runway
+white/green/red edge+threshold lights (~58 spheres), taxiway blue edge
+lights (22 spheres), and cargo-yard containers (~32 boxes, bucketed by their
+5 paint colours) all moved to a shared `InstancedStatic` helper the same
+way — positions precomputed once at module scope from the existing
+dimension constants, matrices written once on mount. The approach-lighting
+"rabbit" (25 spheres, 5 bars x 5 lights) needed to keep animating, so it's
+one `InstancedMesh` with `vertexColors: true`, recoloured per-instance via
+`setColorAt` in `useFrame` instead of swapping 5 shared materials across 25
+meshes. PAPI (4 boxes) left as plain meshes — too small to bother.
+
+**City: trees, the single largest repeat-geometry cost by a wide margin.**
+`components/City.tsx`'s per-tree `Tree()` rendered 8 separate meshes (trunk
++ 2 branches + 5 crown lobes) — at ~75-100 trees live at `VIEW=2` (per the
+file's own shadow-pass comment), that's 600-800 draw calls for trees alone.
+Replaced with `Trees({ specs })`, rendering one chunk's whole tree set via
+the project's own established `<Instances>`/`<Instance>` pattern (already
+used for apartment windows/balconies, not a new technique): trunk and
+branches each always share one material regardless of tree, so they
+collapse straight to 2 `<Instances>`; crown lobes pick one of 9 `CROWN_MATS`
+(`matIdx*3+tint`), so they're bucketed by material into up to 9 more — still
+a hard ceiling of ~11 draw calls for however many trees are in the chunk,
+down from 8-per-tree. Per-tree colliders (`RigidBody`+`CylinderCollider`)
+are unchanged, one per tree, since Rapier bodies aren't part of the
+draw-call cost this pass targets. Math (positions/rotations/scales) ported
+1:1 from the deleted `Tree()` — same `hash2` jitter, same lobe/branch
+formulas — visual result is unchanged, only how it reaches the GPU changed.
+
+**Verification, and an honest gap.** `tsc --noEmit` and `eslint` both clean
+on every changed file (one pre-existing unrelated warning in `Airport.tsx`,
+confirmed via `git stash` to predate this session). No new console or dev-
+server errors on a clean `.next` rebuild + fresh tab load, checked against
+this session's embedded browser tool specifically because it turned out to
+matter: **this sandbox's Browser pane cannot render a visible frame at
+all** — `document.hidden` reports `true` even on the tool's own "active"
+tab, so Chromium throttles the R3F render loop's `requestAnimationFrame` to
+zero (`WebGL2RenderingContext.prototype.drawElements`/`drawElementsInstanced`
+call counts confirmed at 0 over a real time window). Confirmed this is not
+a regression from this session's diff: reverted to the unmodified
+pre-Milestone-23 code via `git stash` and reproduced the identical black
+canvas / zero draw calls before restoring the changes. This is a different
+symptom of the same class of sandbox limitation Milestones 5/12/13 already
+named (that one was software-rendering artifacts via SwiftShader; this one
+is the embedding tool never granting the tab real OS-level focus) — the dev
+server at `localhost:3000` renders normally in a real browser outside this
+tool, which is the recommended way to actually eyeball this milestone's
+result.
+
+**Follow-up, same session: chunk-boundary flinch at speed — confirmed
+pre-existing, not caused by the InstancedMesh work above, but real and
+fixed.** The user reported the car/camera visibly pausing-then-snapping
+while driving fast, then confirmed via direct question that it did this
+before today's changes too. Root cause was already half-diagnosed in
+`City.tsx`'s own comment: crossing a chunk boundary mounts new buildings'
+RigidBodies/colliders (and now `Trees`'s `InstancedMesh` buffers) — already
+throttled to `ADD_PER_FRAME=2` chunks per frame on the *add* side, but the
+*remove* side dropped every now-stale chunk in one uncapped commit, on the
+comment's own now-inaccurate assumption that "unmount is cheap." A diagonal
+boundary crossing can go stale on up to 9 chunks at once (an L-shape of the
+5x5 `VIEW` window), each disposing Rapier colliders and `InstancedMesh` GPU
+buffers synchronously — that uncapped side was the real remaining hitch.
+Fixed by queuing removals through the same per-frame-batch mechanism as
+additions (`pendingRemove`, mirrors `pendingAdd`), so both sides drain at
+`ADD_PER_FRAME` chunks/frame — the chunk set is briefly a superset of the
+ideal window while both queues empty, never a shrunk-then-grown one. One
+subtlety caught before it shipped: the first draft peeked at the live
+`chunks` state directly from the `useFrame` closure to compute the
+add/remove queues, which reintroduces the exact same-tick staleness the
+file's own existing dedupe comment warns about (`useFrame` runs outside
+React's batched-event context). Fixed by peeking through `setChunks`'s
+functional-update form instead (returns the same array reference, a no-op
+commit) — guaranteed-fresh `cur` without an early, premature state change.
+`tsc`/`eslint` clean, no new console/server errors on a clean rebuild — same
+sandbox-can't-render caveat as everything else in this milestone applies;
+whether it actually feels smoother needs the user's own browser.
+
+**Files changed:** `components/Airliner.tsx` (`FanBlades`), `components/
+Airport.tsx` (`InstancedStatic`, `RUNWAY_WHITE_LIGHT_POS`/`_GREEN_`/`_RED_`,
+`TAXI_BLUE_LIGHT_POS`, `APPROACH_LIGHT_*`, `CARGO_CONTAINER_*`, rewritten
+`RunwayLights`/`TaxiwayMarkings`/`ApproachLights`/`CargoYard`), `components/
+City.tsx` (`Trees` replaces `Tree`; `City()`'s chunk streamer gained
+`pendingRemove` to throttle removals same as additions).
+
+## Milestone 24 — I-94 sea bridge + FORT NEON military base (2026-08-03)
+
+**Goal:** a new landmark pair asked for directly — an elevated highway with
+a real drivable ramp, and a heavily-secured military base (tanks,
+helicopters, patrolling personnel/vehicles, jet flyovers) — with one hard
+constraint stated explicitly after the first pass got it wrong: the whole
+thing had to sit far from every existing landmark, out over the sea,
+reachable only by crossing the bridge. The first build put both inland,
+just north of downtown; corrected to a real sea crossing once that was
+called out.
+
+**I-94 is a single-ramp sea bridge, not a symmetric inland overpass.**
+`components/Highway.tsx`: one sloped `RigidBody`+`CuboidCollider` ramp
+(`lib/highway.ts`'s `RAMP_X0`→`RAMP_X1`, solid ground, real city chunks)
+climbs to `DECK_H`=9m, then a flat deck runs 950m straight east
+(`DECK_X0`→`DECK_X1`) over open water — `components/Water.tsx`'s plane
+already covers everything past `LAND_EDGE_X`=550 — ending flush against
+FORT NEON's own platform, at the same height, no second ramp down (there's
+no ground out there to ramp down to). The ramp is one tilted collider, not a
+discrete step: `run`/`rise`→`atan2` gives the tilt angle, `run/cos(theta)`
+the true slope length, so the existing `KinematicCharacterController`
+climbs it the same way it climbs any sloped/uneven collider — no special-
+cased "is this a ramp" branch anywhere in `Car.tsx`/`Bike.tsx`/etc, same
+"solid geometry, not a height-hack" call `components/Marina.tsx`'s pier deck
+already made for a flat surface. Only the ramp's own footprint (chunks
+ci=4-5) needed a `City.tsx` exemption (`HIGHWAY_CHUNKS`) — everything past
+ci=6 is open water `City.tsx` already skips generating chunks for.
+
+**FORT NEON sits on its own platform out over open water — it has no
+natural ground the way `components/Airport.tsx` gets for free from a real
+city chunk.** `lib/militaryBase.ts`'s `BASE_X` is the bridge's own `DECK_X1`
+plus the compound's half-width, so the platform's gate wall lands exactly
+flush against the deck — drive off the bridge straight through the gate.
+`components/MilitaryBase.tsx`'s `Platform()` is a real full-footprint
+`RigidBody`+`CuboidCollider` (there being nothing else to stand on out
+there), plus decorative support pylons reaching down toward the waterline
+so it reads as a built structure and not a slab floating in air. Two real
+bugs caught before shipping, both from copying the airport's own gate
+convention without checking it still applied: (1) the gate's `GATE_CZ`
+started at -50 (the airport's own "land on a city road centreline" offset)
+— meaningless here since there's no road grid, and it put the gate 13-26
+units off the bridge's actual centreline, so a car crossing the bridge
+would have hit solid wall instead of the opening; fixed to `GATE_CZ=0`,
+which *is* the bridge's centreline since `BASE_Z` is defined equal to
+`HWY_Z`. (2) The mountable tank's `TANK_GROUND_Y` was defined as
+`PLATFORM_Y + 0.55` for the world-space drivable rig, but the tank yard's
+*decorative* `ParkedTank`s render inside `MilitaryBase.tsx`'s own group
+(already offset by `PLATFORM_Y`) — reusing the same constant there would
+have doubled the offset, floating every parked tank ~9m above the platform.
+Split into two: the drivable `Tank()` keeps the full world-space constant,
+`ParkedTank` uses a bare local ride height instead.
+
+**Everything else reuses existing patterns rather than inventing new
+ones:** solid precast-look walls + barbed-wire trim (same technique
+`components/Airport.tsx`'s chain-link fence uses, heavier materials), 4
+corner guard towers with a posted `PersonFigure` guard each, a hardened
+gate with a checkpoint booth + "RESTRICTED AREA — DEADLY FORCE AUTHORIZED"
+signage + a `VEHICLE_ONLY` gap (`lib/collisionGroups.ts`) identical to the
+airport's own walk-in-only design — a car hits the wall, a pedestrian walks
+through, then can steal a tank or chopper off the yard. `components/
+Tank.tsx`'s `Tank`/`TankMesh` are a new mountable `VehicleKind`
+(`TANK_HANDLING` in `lib/carPhysics.ts`: slow, heavy, near-zero slide,
+turret+barrel fixed forward — "drive a tank," not "operate a turret," a
+materially bigger control scheme that wasn't asked for) built by copying
+`components/PoliceJeep.tsx`'s drive-rig template directly. Parked
+`ParkedTank`s fill out the tank yard using the same mesh. Choppers reuse
+`components/Helicopter.tsx`'s `HeliMesh` wholesale — gained one optional
+`bodyMat` prop (defaults to the existing civilian orange-red, every other
+caller unaffected) so the base's parked-and-patrolling choppers can wear
+olive drab instead. The fighter-jet flyover (`components/FighterJet.tsx`,
+new `FighterJetMesh`) and the patrol chopper's low loop both reuse
+`components/AirportLife.tsx`'s `usePathFollower` (newly exported) — the
+same keyframed-path/bank/pitch driver the airport's circling airliners
+already use — rather than a second copy of that math. The jet is
+deliberately **not** mountable: the ask was jets "flying over it," and a
+fighter's flight envelope doesn't fit `lib/flightPhysics.ts`'s arcade-
+airliner model without its own tuning pass. `components/Pedestrians.tsx`
+needed no equivalent of the airport's `pickCityBlock` exclusion — the base
+sits entirely past the point where ordinary civilians' spawn/rehome range
+(real city land chunks) ever reaches, unlike the airport which sits on
+real, reachable land.
+
+**Verification, same honest caveat as Milestone 23.** `tsc --noEmit` and
+`eslint` both clean across every new/changed file, no new console or dev-
+server errors on a clean `.next` rebuild + fresh-tab load. This session's
+embedded Browser pane rendered pixels inconsistently across attempts
+(`document.hidden` flips between `true`/`false` run to run, independent of
+anything in this diff — same underlying tool limitation named in Milestone
+23) — got one clean screenshot of the bridge/ramp structure mid-build (before
+the coordinates were corrected to the sea-crossing layout), but the
+corrected FORT NEON-on-a-platform layout has **not** been visually
+confirmed on screen, only verified by hand-checked coordinate math (which is
+exactly what caught the two bugs above). Worth a real look in an actual
+browser before trusting the gate alignment/platform height fully.
+
+**Three more real bugs, all caught from the user actually driving it** (the
+first real-hardware test this milestone got, and it found things hand-
+checked math didn't): (1) `components/BigMap.tsx`'s world-view was a
+hand-picked fixed box (`WX0=-260, WX1=620, WZ0=-320, WZ1=320`) — FORT NEON
+at (1670,-400) fell miles outside it, so its pin silently never rendered on
+the map canvas (the destination list still worked). Turned out
+INTERNATIONAL AIRPORT at x=-750 had the exact same bug already, unnoticed
+until this prompted a look. Fixed by deriving the bounds from `LANDMARKS`
+itself (min/max + margin) instead of a hardcoded box that goes stale every
+time a landmark is added — can't happen again. (2) The ramp's `RigidBody`
+was positioned at its *centre* height, but a tilted box's centre and its
+top face land at different world heights once rotated — the top surface
+actually sat ~0.8 units above the ground at the ramp's low end, a real
+step, not a ramp; tall enough that Car.tsx's character controller (no
+autostep configured, `enableSnapToGround(0.4)` alone doesn't cover a full
+unit) simply couldn't get onto it. Reported as "the ramp is too high, the
+car can't even get on it" — fixed by solving for where the box's centre
+must sit so its top face, not its centre, passes through (xA,0) and
+(xB,DECK_H) exactly. (3) `lib/marina.ts`'s `clampFromWater()` — a hard
+numeric backstop that runs on every land vehicle every frame — clamps x
+back to the coastline (≤550) unconditionally, with zero awareness the
+bridge/base now legitimately extend past it, and with no elevation check
+at all. Reported as "stuck mid-ramp, can't go forward" — the car's x was
+being yanked back to 550 every single frame regardless of being up on the
+elevated deck. Fixed by skipping the clamp entirely inside the bridge
+corridor or the base's footprint (small margin), leaving the original
+coastline clamp intact everywhere else. All three: `tsc`/`eslint` clean, no
+new console/server errors — not independently re-confirmed on screen after
+the fix (the user was mid-test in their own browser when these were
+reported and fixed), so worth another real drive to confirm each one.
+
+**Files added:** `lib/highway.ts`, `lib/militaryBase.ts`, `components/
+Highway.tsx`, `components/MilitaryBase.tsx`, `components/Tank.tsx`,
+`components/FighterJet.tsx`.
+**Files changed:** `components/City.tsx` (`HIGHWAY_CHUNKS` exemption),
+`components/BigMap.tsx` (bounds derived from `LANDMARKS` instead of a
+hardcoded box), `lib/marina.ts` (`clampFromWater` exempts the bridge/base
+footprint), `components/Pedestrians.tsx` (doc comment only, no behavior
+change), `components/AirportLife.tsx` (exported `usePathFollower`),
+`components/Helicopter.tsx` (`HeliMesh` gained optional `bodyMat`), `components/
+Game.tsx` (mounts `Highway`/`MilitaryBase`/`Tank`), `lib/carPhysics.ts`
+(`TANK_HANDLING`), `lib/hudStore.ts` (`"tank"` `VehicleKind` + name),
+`lib/vehicleState.ts` (`tank` spawn entry), `lib/landmarks.ts` ("FORT NEON").
+
+**Two more real bugs, both live-tested and confirmed fixed in-browser (not
+just hand-checked math this time).** (1) `nextPos.x >= SHORE_X` drowning
+timers in `Car.tsx`/`Bike.tsx`/`Player.tsx` have the identical blind spot
+`clampFromWater` had — x-only, no elevation check — so driving onto the
+bridge deck (or walking through the base's gate, the *intended* way in on
+foot) got the player teleported to POLICE HARBOR a couple seconds later,
+"the game thinks the car fell in the water." Root-caused and fixed by
+extracting the bridge/base check into one shared `lib/marina.ts` export,
+`isOnBridgeOrBase()`, used by `clampFromWater` and all three drowning
+timers alike. (2) Every land vehicle's *initial* `RigidBody` spawn position
+and the dismount-to-on-foot teleport both hardcoded a sea-level ride height
+(`RIDE_HEIGHT`/literal `1`) regardless of where the vehicle's save actually
+put it — reported as "I got out of the car and it just threw me in the
+water" after successfully reaching FORT NEON's platform. Two separate call
+sites, same root assumption ("the ground is always at y=0") that the
+platform breaks. Fixed generically rather than special-cased: `lib/
+highway.ts`'s `highwayGroundY()` and `lib/militaryBase.ts`'s `baseGroundY()`
+(deliberately tighter than the loose `isOnBridgeOrBase` check — that one's
+missing lower-x bound is fine for "skip a clamp" but would wrongly report
+deck height for ordinary ground west of the ramp) feed a combined `lib/
+marina.ts`'s `groundYAt(x,z)`, added to `RIDE_HEIGHT` at every land
+vehicle's spawn (`Car`/`Bike`/`PoliceCar`/`PoliceJeep`/`CommercialVehicle`
+— `Tank` already hardcodes the platform height directly since it only ever
+spawns there). Every land vehicle also now writes its real `y` into
+`vehicleState` every frame (previously only `Plane`/`Helicopter` did), and
+`lib/player.ts`'s dismount reads that instead of assuming 1. **Both
+confirmed live**: drove the full bridge (ramp climb → 950m deck → gate,
+no drowning-respawn at any point), spawned a car directly on the platform
+(sat correctly instead of falling through), and dismounted with `E` right
+next to it (player stood on the platform, not in the water below).
+
+**Files changed further:** `components/Car.tsx`/`Bike.tsx`/`PoliceCar.tsx`/
+`PoliceJeep.tsx`/`CommercialVehicle.tsx`/`Tank.tsx` (write `vehicleState.<kind>.y`
+each frame; first five also use `groundYAt` at spawn), `components/Player.tsx`
+(dismount teleport uses `playerTeleport.y` instead of a hardcoded `1`),
+`lib/player.ts` (passes the mounted vehicle's real `y` to the teleport),
+`lib/playerTeleport.ts` (`y` field, `requestPlayerTeleport` gained a `y`
+param), `lib/marina.ts` (`isOnBridgeOrBase` exported and reused by the
+drowning timers, new `groundYAt`), `lib/highway.ts` (`highwayGroundY`),
+`lib/militaryBase.ts` (`baseGroundY`).
+
+## Milestone 25 — FORT NEON expansion: bigger drivable tanks, motor pool,
+parked jets, 24/7 patrols, tank main gun + vehicle destruction (2026-08-03)
+
+**Goal:** a big follow-up ask on top of Milestone 24's base — scale up the
+tank, let it actually leave the compound, give the base real military set
+dressing (camo texture, warehouses, a proper tank formation, parked jets),
+round-the-clock patrols, and — the biggest new system — a working tank main
+gun that can destroy vehicles (stop, burn, vanish, respawn) and visibly
+damage the environment.
+
+**Bigger tanks, and a gate that's actually drivable.** `components/Tank.tsx`
+gained `TANK_SCALE=1.7`, applied to the visual mesh and the collider box
+alike (kept `TankMesh` itself authored at 1x, scaled by its callers — same
+convention `components/Airport.tsx`'s `ParkedHeli` already uses for
+`HeliMesh`). `components/MilitaryBase.tsx`'s gate lost its `VEHICLE_ONLY`
+collider entirely: Milestone 24 built it walk-in-only on purpose (matching
+`components/Airport.tsx`'s own gate), but the user asked directly for tanks
+to leave the base, so this gate is now a real open drivable entrance/exit
+for every vehicle — the barrier arm is raised, pure dressing, no collider of
+its own.
+
+**Military set dressing.** New `lib/militaryTextures.ts` bakes a canvas camo
+texture (`CAMO_TEX`, same `tex()`/module-load idiom as `lib/
+airportTextures.ts`) — olive base, brown/khaki/black blotches — applied to
+the compound's ground and the new warehouse walls. `lib/militaryBase.ts`'s
+interior layout was rebuilt as clean, generously-separated depth bands
+running from the gate inward (gate apron → motor pool → helipads →
+barracks → jets), specifically to guarantee no two structures overlap after
+the first layout attempt got cramped. The motor pool (`WAREHOUSES`,
+`TANK_FORMATION`) is two big sheds flanking a real 3x3 grid of parked tanks,
+all facing the gate as if ready to roll out — "parked in a certain way," not
+scattered — plus one dedicated spot (`TANK_SPAWN`) further down the lane for
+the actual drivable tank. `JET_APRON` parks three of `components/
+FighterJet.tsx`'s `FighterJetMesh` at 2.3x scale as "big jets," reusing the
+flyover's own mesh rather than building a second aircraft model.
+
+**24/7 patrols.** `components/Traffic.tsx` gained two more `policeJeep`
+lanes confined entirely inside the compound's walls (world coordinates
+derived from `BASE_X`/`BASE_Z`/`FENCE_X`/`FENCE_Z`), running opposite
+directions north/south of the motor-pool lane. Reuses the existing boxy
+`PoliceJeepMesh` rather than a new recolored body — it already reads as
+tactical/security, named as a deliberate scope cut rather than building a
+second jeep skin. **Real bug caught before it shipped**: `TrafficCar`'s own
+`setNextKinematicTranslation` hardcodes `y: RIDE_HEIGHT` (sea level) every
+frame — the exact same elevation blind spot Milestone 24 fixed for every
+*player* land vehicle, just never touched for scripted NPC lanes. Without
+the fix, these two new patrol lanes would drive at sea level while the
+compound floats ~9 units above it. Fixed with the same `groundYAt` this
+milestone already leans on everywhere else.
+
+**Tank main gun.** New `lib/tankShell.ts` (`fireQueue`, a one-shot request
+queue — same shape as `lib/debris.ts`'s `debrisQueue`) and `components/
+TankCombat.tsx` (mounted once in `Game.tsx`, pooled: 6 shells, 6 explosion
+flashes, 3 burning wrecks — same manually-integrated-physics idiom as
+`components/Debris.tsx`/`NitroFX.tsx`, no real Rapier bodies). `lib/
+useKeyboard.ts` gained a `fire` field (**F** key) that every non-tank
+vehicle simply ignores, same as they already ignore `boost` unless they're
+the car. `components/Tank.tsx` fires from an approximated barrel-tip offset
+on a 0.8s cooldown.
+
+**Vehicle destruction — the user's exact spec:** "the car stops, burns till
+it's black, and after 2, 3, or maybe 5 seconds, it disappears." A shell
+hit-tests each frame against `vehicleState.car` (the player's own car) and
+every `components/Traffic.tsx` `trafficPositions` slot (civilian + police +
+the new base patrols). On a hit: a burning-wreck actor spawns at the impact
+point (blackened silhouette + flickering flame + fading point light, 4
+seconds — the middle of the user's own range) while the *real* vehicle is
+handled separately. For the player's car, new `lib/vehicleDestroy.ts`'s
+`carDestroyRequest` (consumed by `components/Car.tsx`, same one-shot-signal
+shape as `lib/clubTeleport.ts`) freezes it, stashes it far below the map,
+force-dismounts the player on foot if they were driving it (reusing `lib/
+playerTeleport.ts`, correctly elevation-aware per Milestone 24's own fix),
+then respawns a fresh car at the game's default spawn point once the burn
+timer elapses. NPC traffic reuses the lane's *existing* `stolen`/
+`respawnIn` hide-and-respawn mechanism (`lib/steal.ts`'s own plumbing) —
+no new state needed there, just set from a new caller.
+
+**"Damage buildings" — a deliberately named scope cut, not a missing
+feature.** Procedural chunk buildings (`components/City.tsx`) have no
+id/health state to attach damage to, and chunks stream in/out as the player
+drives — tracking "this specific building took damage" would need a real
+persistent-damage system, a much bigger undertaking than "the tank can fire
+and it looks like it did something." A shell that doesn't hit a vehicle
+within its range/lifetime is treated as a building/ground impact: a real
+explosion flash plus a debris burst (reusing `components/Debris.tsx`'s
+already-mounted pooled fragment system via `spawnDebris`) fires at the
+impact point. It reads as damage without any building actually losing
+health or geometry.
+
+**Verification — mixed, named honestly.** `tsc --noEmit` and `eslint` both
+clean across every new/changed file (only the same two pre-existing
+`PoliceCar.tsx` errors from before this session, confirmed via `git stash`
+not introduced here). No new console or dev-server errors across several
+clean `.next` rebuilds. **This session's live-in-browser testing hit real
+tool flakiness, not code bugs**: a save/reload race (this sandbox's
+`localStorage` autosave firing between a seeded save and the reload taking
+effect — the same class of issue Milestone 23/24 already worked around, not
+new here) meant the final live test loaded with default state instead of
+the intended "spawn in the tank, fire it" scenario; confirmed instead that
+the build loads and runs with zero console/runtime errors and that basic
+driving input works. **The fire→hit→destroy→respawn chain, the reworked
+gate collision, and the new patrol lanes have not been visually confirmed
+on screen this session** — verified by code review and the same hand-
+checked-math discipline that caught Milestone 24's two real bugs, not by
+watching a shell actually connect. Worth a real playtest before trusting
+the whole chain.
+
+**Files added:** `lib/tankShell.ts`, `lib/vehicleDestroy.ts`, `lib/
+militaryTextures.ts`, `components/TankCombat.tsx`.
+**Files changed:** `components/Tank.tsx` (`TANK_SCALE`, fire input/cooldown,
+barrel-offset fire origin), `components/MilitaryBase.tsx` (gate collider
+removed, camo ground material, `Warehouse`/`MotorPool`/`ParkedJets`
+components replacing `TankYard`), `lib/militaryBase.ts` (`WAREHOUSES`,
+`TANK_FORMATION`, `TANK_SPAWN`, `JET_APRON`, rebanded interior layout),
+`components/Traffic.tsx` (two base-patrol lanes, `groundYAt` fix for every
+lane's elevation), `components/Car.tsx` (`carDestroyRequest` consumption,
+`BURN_DURATION`/`CAR_RESPAWN`), `lib/useKeyboard.ts` (`fire` key/`KeyF`),
+`components/HUD.tsx` (controls legend), `components/Game.tsx` (mounts
+`TankCombat`), `lib/vehicleState.ts` (`tank` spawn updated to `TANK_SPAWN`).
+
+## Next up — by phase
+
+Context: Milestones 14-17 built the whole city (world scale, real physics,
+maps, building variety, texture/detail) on top of the fidelity work in
+Milestones 1-13. Milestone 18 layered weather, nitro FX, commercial traffic,
+and a flyable airport on top of that. Milestone 19 added a security
+perimeter. Milestone 20 rebuilt the airport at real scale with drivable
+wide-bodies. Milestone 21 closed three of Milestone 20's smaller named gaps.
+Milestone 22 was a large user-driven bugfix/feature session (commercial-
+vehicle drivability, water boundary, airport location + gate vehicles, the
+debris renderer, VENU's exterior, sunny weather). Milestone 23 closed out
+Phase A (airport + city draw-call/perf pass). Everything below is what's
+left, grouped into 4 phases / 12 tasks, ordered roughly biggest-first within
+each phase.
+
+### Phase A — Performance — ✅ done (Milestone 23)
+
+### Phase B — Live verification, real browser (4 tasks)
+
+3. **Fly a drivable airliner end-to-end** — mount at a gate, taxi, take off,
+   land — to confirm `AIRLINER_HANDLING`'s first-guess numbers feel right.
+4. **Fly the small plane/helicopter + drive through weather at least once**
+   — confirm liftoff behaviour and `PLANE_HANDLING`/`HELI_HANDLING` feel
+   right (never done since Milestone 18).
+5. **Verify Milestone 13's ragdoll hit-test live** — carried over
+   unconfirmed since Milestone 13 (an HMR/dev-server issue interrupted the
+   original check).
+6. **Real-hardware check of the `dpr={1}`/`EffectComposer` render artifact**
+   — the hard vertical-split rendering bug, still only reasoned from code
+   (sandbox runs software rendering), unconfirmed since Milestone 5.
+
+### Phase C — Visual/content polish (3 tasks)
+
+7. **Club interior update** — `ClubInterior.tsx` wasn't touched to match
+   Milestone 22's new premium VENU exterior; still the earlier interior
+   build (simplified crowd, no bar/poles/VIP couches — see Milestone 9).
+8. **VENU parking lot** — marked bays exist but no actual parked-car meshes.
+9. **Sunny-weather reflections** — lens-flare streaks / puddle-style ground
+   reflections were discussed in Milestone 22 but not built.
+
+### Phase D — Small named bugs (4 tasks)
+
+10. **`laneBlocked()` doesn't check AI-vs-AI** — only checks real vehicles +
+    pedestrians, not other traffic lanes against each other.
+11. **`PoliceCar.tsx` missing a `VEHICLE_BODY_GROUPS`-equivalent filter** —
+    unlike `Car.tsx`/`Bike.tsx`/`CommercialVehicle.tsx`, its drive rig still
+    gets stuck on `VEHICLE_ONLY` curbs/gates.
+12. **Stolen jeep/bus/truck keeps its default parked livery colour** —
+    `lib/steal.ts` only fixed the *kind* mapping; needs a
+    `stolenCommercial` field shaped like the existing `stolenCar` one.
+13. **Garage bay side walls/roof have no collider** — by design (visual
+    only, so pulling in never gets stuck), but worth a follow-up if a
+    player manages to clip through a side wall at speed.
+
+### Phase E — Deferred big feature (1 task)
+
+14. **Felony-stop convoy maneuver** — the boxing-in state machine named and
+    explicitly skipped since Milestone 11 (a meaningfully bigger state
+    machine than the current straight-follow convoy AI).

@@ -14,6 +14,8 @@ import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
 import { pedestrianPositions } from "@/components/Pedestrians";
 import { spawnDebris } from "@/lib/debris";
+import { groundYAt } from "@/lib/marina";
+import { BASE_X, BASE_Z, FENCE_X, FENCE_Z } from "@/lib/militaryBase";
 
 // Basic traffic AI (Phase 3, part of Milestone 4): a handful of self-driving
 // cars patrolling straight lanes. Deliberately not the original's full
@@ -104,6 +106,17 @@ const LANES: Lane[] = [
   { axis: "x", lane: 180, min: -970, max: -540, speed: 10, color: "#0c0c0e", police: true },
   { axis: "z", lane: -850, min: -100, max: 280, speed: 10, color: "#0c0c0e", police: true },
   { axis: "z", lane: -600, min: -50, max: 250, speed: 8, color: "#0c0c0e", policeJeep: true },
+
+  // FORT NEON: 24/7 military patrol jeeps, confined entirely inside the
+  // compound's own walls (world x/z within BASE_X/BASE_Z ± FENCE_X/FENCE_Z —
+  // see lib/militaryBase.ts) — reuses the same PoliceJeepMesh/policeJeep
+  // lane mechanic the airport's own gate patrol uses (boxy 4x4 already
+  // reads as tactical/security, not worth a second recolored body just for
+  // this). Two lanes, north and south of the motor-pool lane, opposite
+  // directions so they read as an actual patrol pattern, not two cars stuck
+  // in lockstep.
+  { axis: "x", lane: BASE_Z - (FENCE_Z - 15), min: BASE_X - (FENCE_X - 15), max: BASE_X + (FENCE_X - 15), speed: 9, color: "#0c0c0e", policeJeep: true },
+  { axis: "x", lane: BASE_Z + (FENCE_Z - 15), min: BASE_X - (FENCE_X - 15), max: BASE_X + (FENCE_X - 15), speed: 9, color: "#0c0c0e", policeJeep: true },
 ];
 
 // Live per-lane traffic slot — same shared-singleton pattern as skyState/
@@ -368,7 +381,10 @@ function TrafficCar({ lane, seed, index }: { lane: Lane; seed: number; index: nu
       if (lightRefs.current[1]) lightRefs.current[1].color.set(flashRed ? "#0a1030" : "#2040ff");
     }
 
-    body.setNextKinematicTranslation({ x, y: RIDE_HEIGHT, z });
+    // groundYAt: 0 everywhere except FORT NEON's patrol lanes (lib/
+    // militaryBase.ts's platform sits ~9 units up, not sea level) — same fix
+    // Car.tsx/Bike.tsx/etc. needed for the same reason.
+    body.setNextKinematicTranslation({ x, y: groundYAt(x, z) + RIDE_HEIGHT, z });
     body.setNextKinematicRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading));
     slot.x = x;
     slot.z = z;

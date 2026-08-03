@@ -34,4 +34,9 @@ export const LANDMARKS: Landmark[] = [
   // its original -300 anchor, so it reads as a real trip from VENU instead
   // of sitting right next door.
   { name: "INTERNATIONAL AIRPORT", x: -750, z: 100, col: "#8fd6ff" },
+  // FORT NEON — a fortified compound out on its own platform at the far end
+  // of I-94's sea bridge (see lib/militaryBase.ts's BASE_X/BASE_Z, lib/
+  // highway.ts, components/MilitaryBase.tsx) — deliberately far from every
+  // other landmark, reachable only by crossing the bridge (or by boat/air)
+  { name: "FORT NEON", x: 1670, z: -400, col: "#8a9a4a" },
 ].map((l) => ({ col: "#ff3fd6", ...l })) as Landmark[];

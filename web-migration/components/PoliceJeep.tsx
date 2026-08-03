@@ -15,7 +15,7 @@ import { applyCameraRig } from "@/lib/cameraRig";
 import { teleportRequest } from "@/lib/clubTeleport";
 import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
-import { clampFromWater } from "@/lib/marina";
+import { clampFromWater, groundYAt } from "@/lib/marina";
 import { PoliceJeepMesh } from "@/components/ParkedPoliceJeep";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
@@ -119,6 +119,7 @@ export function PoliceJeep() {
     }
 
     vehicleState.policeJeep.x = nextPos.x;
+    vehicleState.policeJeep.y = nextPos.y;
     vehicleState.policeJeep.z = nextPos.z;
     vehicleState.policeJeep.h = car.current.h;
     vehicleState.policeJeep.speed = car.current.speed;
@@ -161,7 +162,11 @@ export function PoliceJeep() {
       ref={bodyRef}
       type="kinematicPosition"
       colliders={false}
-      position={[save?.x ?? vehicleState.policeJeep.x, RIDE_HEIGHT, save?.z ?? vehicleState.policeJeep.z]}
+      position={[
+        save?.x ?? vehicleState.policeJeep.x,
+        groundYAt(save?.x ?? vehicleState.policeJeep.x, save?.z ?? vehicleState.policeJeep.z) + RIDE_HEIGHT,
+        save?.z ?? vehicleState.policeJeep.z,
+      ]}
     >
       <CuboidCollider ref={colliderRef} args={[carBox.x / 2, carBox.y / 2, carBox.z / 2]} position={[0, carBox.y / 2, 0]} />
       <PoliceJeepMesh lightRefs={lightRefs} />

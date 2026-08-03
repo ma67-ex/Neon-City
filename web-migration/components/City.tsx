@@ -10,6 +10,7 @@ import { worldState } from "@/lib/worldState";
 import { loadSave } from "@/lib/saveGame";
 import { LANDMARKS } from "@/lib/landmarks";
 import { CLUB_IN } from "@/lib/club";
+import { HIGHWAY_CHUNKS } from "@/lib/highway";
 
 // Real chunk-streamed city (Milestone 5), replacing the placeholder 7-box
 // arena from Phase 1. Same constants and the same seeded-PRNG-per-chunk
@@ -588,6 +589,7 @@ export function City() {
   const [chunks, setChunks] = useState<string[]>(() => initialChunks());
   const last = useRef({ ci: 999, cj: 999 });
   const pendingAdd = useRef<string[]>([]);
+  const pendingRemove = useRef<string[]>([]);
 
   useFrame(() => {
     const ci = Math.round(worldState.px / CELL);
@@ -600,28 +602,38 @@ export function City() {
           next.add(`${ci + di},${cj + dj}`);
         }
       }
-      // drop stale chunks immediately (unmount is cheap) but queue newly-needed
-      // ones instead of mounting the whole ~5-chunk new ring in one commit —
-      // crossing a boundary at speed used to mount several buildings' worth of
-      // RigidBodies/colliders/textures in a single frame, a real stutter (car/
-      // camera visibly pausing then snapping) that gets worse the faster you're
-      // going, since each hitch covers more distance. Spreading ADD_PER_FRAME
-      // chunks over a few frames instead doesn't change what's ever on screen —
-      // same final chunk set, same draw distance — just how it arrives.
+      // queue BOTH newly-needed chunks and now-stale ones instead of mounting/
+      // unmounting the whole ~5-chunk changed ring in one commit — crossing a
+      // boundary at speed used to mount (and, on a diagonal crossing, drop up
+      // to 9 chunks') worth of RigidBodies/colliders/InstancedMesh GPU buffers
+      // in a single frame, a real stutter (car/camera visibly pausing then
+      // snapping) that gets worse the faster you're going, since each hitch
+      // covers more distance. Removal used to be assumed "cheap enough" to do
+      // all at once — it isn't once colliders and per-chunk InstancedMesh
+      // buffers (components/City.tsx's Trees) need disposing — so it's
+      // throttled the same ADD_PER_FRAME-at-a-time way additions already are.
+      // Spreading both over a few frames doesn't change what's ever on screen
+      // (same final chunk set, same draw distance, just briefly a superset of
+      // it while the queues drain) — just how it arrives.
+      // peek at the latest committed-or-pending chunk list via the functional
+      // form (guaranteed fresh even if another setChunks landed this same
+      // tick — see the dedupe note below) without actually changing it yet;
+      // the throttled batches below are what mutate `chunks` from here on
       setChunks((cur) => {
-        const kept = cur.filter((k) => next.has(k));
-        // re-queuing a key already sitting in the old pendingAdd (still
-        // in-flight, not yet merged into `cur`) is harmless on its own, but
-        // useFrame runs outside React's batched-event context, so two
-        // setChunks calls this same tick aren't guaranteed to see each
-        // other's result before render — dedupe defensively at merge time
-        // below instead of trying to prove that race can't happen.
-        pendingAdd.current = Array.from(next).filter((k) => !kept.includes(k));
-        return kept;
+        pendingRemove.current = cur.filter((k) => !next.has(k));
+        pendingAdd.current = Array.from(next).filter((k) => !cur.includes(k));
+        return cur;
       });
+    }
+    if (pendingRemove.current.length > 0) {
+      const dropBatch = pendingRemove.current.splice(0, ADD_PER_FRAME);
+      setChunks((cur) => cur.filter((k) => !dropBatch.includes(k)));
     }
     if (pendingAdd.current.length > 0) {
       const batch = pendingAdd.current.splice(0, ADD_PER_FRAME);
+      // dedupe defensively at merge time: useFrame runs outside React's
+      // batched-event context, so this and the removal setChunks call above
+      // aren't guaranteed to see each other's result before render.
       setChunks((cur) => Array.from(new Set([...cur, ...batch])));
     }
   });
@@ -695,7 +707,8 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
     (ci === 0 && cj === 0) ||
     LANDMARK_CHUNKS.has(`${ci},${cj}`) ||
     `${ci},${cj}` === CLUB_IN_CHUNK ||
-    AIRPORT_CHUNKS.has(`${ci},${cj}`);
+    AIRPORT_CHUNKS.has(`${ci},${cj}`) ||
+    HIGHWAY_CHUNKS.has(`${ci},${cj}`);
 
   const content = useMemo(() => {
     if (isExempt) return { buildings: [] as BuildingSpec[], trees: [] as TreeDesc[], isPark: false };
@@ -820,9 +833,7 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
       {content.buildings.map((b, i) => (
         <Building key={i} spec={b} />
       ))}
-      {content.trees.map((t, i) => (
-        <Tree key={i} x={t.x} z={t.z} h={t.h} r={t.r} matIdx={t.matIdx} />
-      ))}
+      <Trees specs={content.trees} />
     </group>
   );
 }
@@ -1504,51 +1515,84 @@ function HouseBuilding({ spec: { x, z, w, d, h, colorIdx, groupX, groupZ } }: { 
 // a bug, not "dressing" (originally cut for cost; the crown stays visual-only,
 // nobody expects to bounce off leaves). TRUNK_GEO's un-scaled radius is
 // 0.15-0.21; the collider uses a flat 0.2 since x/z scale is always 1.
-function Tree({ x, z, h, r, matIdx }: { x: number; z: number; h: number; r: number; matIdx: number }) {
-  const canopyY = h + r * 0.5;
-  return (
-    <group position={[x, 0, z]}>
-      <RigidBody type="fixed" colliders={false} position={[0, h / 2, 0]}>
-        <CylinderCollider args={[h / 2, 0.2]} />
-      </RigidBody>
-      <mesh castShadow geometry={TRUNK_GEO} material={TRUNK_MAT} scale={[1, h, 1]} position={[0, h / 2, 0]} />
-      {/* ponytail: branch stubs + crown lobes skip castShadow — 7 small
-          shadow-casters per tree × ~75-100 trees live at VIEW=2 was a real
-          chunk of the shadow-pass cost for detail nobody notices is
-          unshadowed at driving distance; trunk still casts (visible on the
-          ground). Geometry/color/position all unchanged, revert if a tree's
-          own shadow ever needs to read on the canopy itself. */}
-      {[-1, 1].map((side) => {
-        const j = hash2(x * 3.1 + side, z * 5.7 + side);
-        // root sits just below the trunk top (blends into it, not floating
-        // above); length is generous enough that, combined with the tilt,
-        // the tip reliably lands inside the canopy lobes rather than short of
-        // them — root is fixed here (geometry is base-anchored, see
-        // BRANCH_GEO), so this can't fall short the way a centred cylinder did
-        const len = r * (0.95 + j * 0.3);
-        return (
-          <mesh
-            key={side}
-            geometry={BRANCH_GEO}
-            material={BRANCH_MAT}
-            scale={[1, len, 1]}
-            position={[side * 0.06, h - r * 0.12, side * 0.03]}
-            rotation={[0, 0, side * (0.5 + j * 0.25)]}
-          />
-        );
-      })}
-      {LOBES.map((lobe, i) => {
-        const j = hash2(x * 7.13 + i * 1.9, z * 4.31 + i * 2.7);
+// Renders every tree in one chunk (typically 3-9, up to 9 more on a park
+// chunk) as a handful of <Instances> instead of one <Tree> subtree each —
+// was up to 8 separate draw calls per tree (trunk + 2 branches + 5 crown
+// lobes), ~75-100 trees live at VIEW=2 per the shadow-pass comment below.
+// Trunk/branch always share one material each (collapses straight to 2
+// <Instances>); crown lobes pick one of 9 CROWN_MATS (matIdx*3+tint), so
+// they're bucketed by material — still ≤9 draw calls total for however many
+// lobes exist in the chunk, down from 5 per tree.
+function Trees({ specs }: { specs: TreeDesc[] }) {
+  const branchItems = useMemo(
+    () =>
+      specs.flatMap((t) =>
+        [-1, 1].map((side) => {
+          const j = hash2(t.x * 3.1 + side, t.z * 5.7 + side);
+          // root sits just below the trunk top (blends into it, not floating
+          // above); length is generous enough that, combined with the tilt,
+          // the tip reliably lands inside the canopy lobes rather than short
+          // of them — root is fixed here (geometry is base-anchored, see
+          // BRANCH_GEO), so this can't fall short the way a centred cylinder did
+          const len = t.r * (0.95 + j * 0.3);
+          return {
+            pos: [t.x + side * 0.06, t.h - t.r * 0.12, t.z + side * 0.03] as [number, number, number],
+            rot: [0, 0, side * (0.5 + j * 0.25)] as [number, number, number],
+            len,
+          };
+        })
+      ),
+    [specs]
+  );
+  const crownItems = useMemo(() => {
+    const items: { pos: [number, number, number]; scale: [number, number, number]; matIdx: number }[] = [];
+    specs.forEach((t) => {
+      const canopyY = t.h + t.r * 0.5;
+      LOBES.forEach((lobe, i) => {
+        const j = hash2(t.x * 7.13 + i * 1.9, t.z * 4.31 + i * 2.7);
         const tint = i % 3; // 0=base, 1=lighter, 2=darker — see CROWN_MATS
-        const s = r * lobe.s * (0.85 + j * 0.3);
+        const s = t.r * lobe.s * (0.85 + j * 0.3);
+        items.push({
+          pos: [t.x + lobe.dx * t.r * 1.3, canopyY + lobe.dy * t.r, t.z + lobe.dz * t.r * 1.3],
+          scale: [s, s * 0.85, s],
+          matIdx: t.matIdx * 3 + tint,
+        });
+      });
+    });
+    return items;
+  }, [specs]);
+
+  if (specs.length === 0) return null;
+  return (
+    <group>
+      {specs.map((t, i) => (
+        <RigidBody key={i} type="fixed" colliders={false} position={[t.x, t.h / 2, t.z]}>
+          <CylinderCollider args={[t.h / 2, 0.2]} />
+        </RigidBody>
+      ))}
+      <Instances geometry={TRUNK_GEO} material={TRUNK_MAT} limit={specs.length} castShadow>
+        {specs.map((t, i) => (
+          <Instance key={i} position={[t.x, t.h / 2, t.z]} scale={[1, t.h, 1]} />
+        ))}
+      </Instances>
+      {/* ponytail: branch stubs + crown lobes skip castShadow — shadow-casters
+          nobody notices unshadowed at driving distance; trunk still casts
+          (visible on the ground). Revert if a tree's own shadow ever needs to
+          read on the canopy itself. */}
+      <Instances geometry={BRANCH_GEO} material={BRANCH_MAT} limit={branchItems.length}>
+        {branchItems.map((b, i) => (
+          <Instance key={i} position={b.pos} rotation={b.rot} scale={[1, b.len, 1]} />
+        ))}
+      </Instances>
+      {CROWN_MATS.map((mat, matIdx) => {
+        const items = crownItems.filter((c) => c.matIdx === matIdx);
+        if (items.length === 0) return null;
         return (
-          <mesh
-            key={i}
-            geometry={CROWN_GEO}
-            material={CROWN_MATS[matIdx * 3 + tint]}
-            scale={[s, s * 0.85, s]}
-            position={[lobe.dx * r * 1.3, canopyY + lobe.dy * r, lobe.dz * r * 1.3]}
-          />
+          <Instances key={matIdx} geometry={CROWN_GEO} material={mat} limit={items.length}>
+            {items.map((c, i) => (
+              <Instance key={i} position={c.pos} scale={c.scale} />
+            ))}
+          </Instances>
         );
       })}
     </group>

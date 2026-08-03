@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { FUSELAGE_TEX, CARGO_TEX, BURNT_FUSELAGE_TEX, repeat } from "@/lib/airportTextures";
 
@@ -93,6 +93,31 @@ function Wing({ side, mat, tipMat }: { side: 1 | -1; mat: THREE.Material; tipMat
   );
 }
 
+// Fan disc geometry/instance-transform is identical on every engine (local
+// frame only — the parent <group> carries position/rotation), so it's
+// computed once at module scope and reused as a single InstancedMesh per
+// engine instead of 18 separate <mesh> draw calls each.
+const FAN_BLADE_COUNT = 18;
+const FAN_BLADE_GEO = new THREE.BoxGeometry(0.16, 3.85, 0.08);
+function FanBlades() {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    for (let i = 0; i < FAN_BLADE_COUNT; i++) {
+      e.set(0.18, 0, (i * Math.PI) / 9);
+      q.setFromEuler(e);
+      m.compose(new THREE.Vector3(0, 0, 3.85), q, new THREE.Vector3(1, 1, 1));
+      mesh.setMatrixAt(i, m);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }, []);
+  return <instancedMesh ref={ref} args={[FAN_BLADE_GEO, CHROME_MAT, FAN_BLADE_COUNT]} />;
+}
+
 function Engine({ side, cowl }: { side: 1 | -1; cowl: THREE.Material }) {
   return (
     <group position={[side * 13.5, -3.6, 3.5]}>
@@ -112,17 +137,9 @@ function Engine({ side, cowl }: { side: 1 | -1; cowl: THREE.Material }) {
       </mesh>
       {/* fan turbine: 18 blades (was 10 — a real high-bypass fan reads as a
           dense disc, not a pinwheel) around a forward-pointing spinner cone,
-          each blade pitched a few degrees like a real fan's angle of attack */}
-      {Array.from({ length: 18 }, (_, i) => (
-        <mesh
-          key={i}
-          position={[0, 0, 3.85]}
-          rotation={[0.18, 0, (i * Math.PI) / 9]}
-          material={CHROME_MAT}
-        >
-          <boxGeometry args={[0.16, 3.85, 0.08]} />
-        </mesh>
-      ))}
+          each blade pitched a few degrees like a real fan's angle of attack —
+          one InstancedMesh (FanBlades) instead of 18 separate draw calls */}
+      <FanBlades />
       <mesh position={[0, 0, 4.15]} rotation={[Math.PI / 2, 0, 0]} material={CHROME_MAT} castShadow>
         <coneGeometry args={[0.42, 1.3, 14]} />
       </mesh>

@@ -18,7 +18,7 @@ import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
 import { RIDE_HEIGHT } from "@/components/SupercarBody";
 import { CommercialBody, type CommercialKind } from "@/components/CommercialBody";
-import { clampFromWater } from "@/lib/marina";
+import { clampFromWater, groundYAt } from "@/lib/marina";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
 const GRAVITY_PULL = -12;
@@ -143,6 +143,7 @@ export function CommercialVehicle({ kind, color }: { kind: CommercialKind; color
     }
 
     vehicleState[kind].x = nextPos.x;
+    vehicleState[kind].y = nextPos.y;
     vehicleState[kind].z = nextPos.z;
     vehicleState[kind].h = car.current.h;
     vehicleState[kind].speed = car.current.speed;
@@ -188,7 +189,11 @@ export function CommercialVehicle({ kind, color }: { kind: CommercialKind; color
       ref={bodyRef}
       type="kinematicPosition"
       colliders={false}
-      position={[save?.x ?? vehicleState[kind].x, RIDE_HEIGHT, save?.z ?? vehicleState[kind].z]}
+      position={[
+        save?.x ?? vehicleState[kind].x,
+        groundYAt(save?.x ?? vehicleState[kind].x, save?.z ?? vehicleState[kind].z) + RIDE_HEIGHT,
+        save?.z ?? vehicleState[kind].z,
+      ]}
     >
       {/* same drop as Car.tsx/Bike.tsx — collider bottom on the tyre contact
           patch, not the mesh origin, or snapToGround buries the chassis */}

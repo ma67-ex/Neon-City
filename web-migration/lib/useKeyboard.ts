@@ -9,6 +9,9 @@ export interface KeyState {
   right: boolean;
   handbrake: boolean;
   boost: boolean;
+  // tank main gun (components/Tank.tsx) — every other vehicle just ignores
+  // this field, same as they already ignore `boost` unless they're the car
+  fire: boolean;
 }
 
 const CODE_MAP: Record<string, keyof KeyState> = {
@@ -23,6 +26,7 @@ const CODE_MAP: Record<string, keyof KeyState> = {
   Space: "handbrake",
   ShiftLeft: "boost",
   ShiftRight: "boost",
+  KeyF: "fire",
 };
 
 /** Live keyboard state in a ref — read inside useFrame, never triggers a re-render. */
@@ -34,6 +38,7 @@ export function useKeyboard() {
     right: false,
     handbrake: false,
     boost: false,
+    fire: false,
   });
 
   useEffect(() => {

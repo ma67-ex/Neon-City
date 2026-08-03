@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
 import { Text } from "@react-three/drei";
@@ -91,6 +91,26 @@ const CONTAINER_MATS = ["#b8452f", "#2f6bb8", "#2f8a5c", "#c9a227", "#6b4fa0"].m
 );
 const TANK_MAT = new THREE.MeshStandardMaterial({ color: "#d6dae0", metalness: 0.6, roughness: 0.4 });
 
+// Cargo container positions, bucketed by which of the 5 CONTAINER_MATS each
+// one uses — precomputed once (same loop CargoYard used to build individual
+// <mesh> elements from) so each bucket becomes one InstancedMesh instead of
+// ~32 separate box draw calls.
+const CARGO_CONTAINER_GEO = new THREE.BoxGeometry(12, 3, 6.4);
+const CARGO_CONTAINER_POS_BY_MAT: [number, number, number][][] = (() => {
+  const buckets: [number, number, number][][] = CONTAINER_MATS.map(() => []);
+  let i = 0;
+  for (let x = -20; x <= 20; x += 13) {
+    for (let z = -46; z <= -20; z += 8) {
+      const stack = 1 + ((i * 7) % 3);
+      for (let s = 0; s < stack; s++) {
+        buckets[(i + s) % CONTAINER_MATS.length].push([x, 1.6 + s * 3.1, z]);
+      }
+      i++;
+    }
+  }
+  return buckets;
+})();
+
 // runway/taxiway light materials — MeshBasic so they read as emitters at any
 // time of day and pick up the scene bloom (see Game.tsx's DynamicBloom)
 const LIGHT_WHITE = new THREE.MeshBasicMaterial({ color: "#fff6e0" });
@@ -146,6 +166,80 @@ const CARGO_X = -195,
 
 const HELIPAD_X = -200;
 const HELIPAD_ZS = [90, 132, 174, 216];
+
+// ------------------------------------------------- static light layout -----
+// Runway/taxiway light fields are all fixed-position emissive spheres —
+// precomputed once here (deterministic given the dimensions above) so each
+// colour renders as one InstancedMesh instead of one <mesh> per bulb. This
+// was ~80 draw calls (44 white edge + 14 threshold + 22 taxiway blue) for
+// static geometry that never moves.
+function rangeX(step: number): number[] {
+  const xs: number[] = [];
+  for (let x = RUNWAY_X0; x <= RUNWAY_X1; x += step) xs.push(x);
+  return xs;
+}
+
+const RUNWAY_EDGE_Z = RUNWAY_W / 2 + 2.5;
+const RUNWAY_WHITE_LIGHT_POS: [number, number, number][] = rangeX(20).flatMap(
+  (x) => [
+    [x, 0.45, RUNWAY_EDGE_Z],
+    [x, 0.45, -RUNWAY_EDGE_Z],
+  ] as [number, number, number][]
+);
+const THRESHOLD_ZS = [-18, -12, -6, 0, 6, 12, 18];
+const RUNWAY_GREEN_LIGHT_POS: [number, number, number][] = THRESHOLD_ZS.map((z) => [RUNWAY_X0 - 1.5, 0.4, z]);
+const RUNWAY_RED_LIGHT_POS: [number, number, number][] = THRESHOLD_ZS.map((z) => [RUNWAY_X1 + 1.5, 0.4, z]);
+const TAXI_BLUE_LIGHT_POS: [number, number, number][] = rangeX(40).flatMap(
+  (x) => [
+    [x, 0.4, TAXI_Z + TAXI_W / 2 + 1.5],
+    [x, 0.4, TAXI_Z - TAXI_W / 2 - 1.5],
+  ] as [number, number, number][]
+);
+
+const LIGHT_SPHERE_042_GEO = new THREE.SphereGeometry(0.42, 6, 6);
+const LIGHT_SPHERE_038_GEO = new THREE.SphereGeometry(0.38, 6, 6);
+
+// Approach-lighting "rabbit": 5 bars x 5 lights, sequenced by recolouring
+// per-instance rather than swapping 5 shared materials across 25 meshes —
+// one InstancedMesh, one draw call, `setColorAt` per frame instead.
+const APPROACH_BAR_COUNT = 5;
+const APPROACH_LIGHTS_PER_BAR = 5;
+const APPROACH_LIGHT_GEO = new THREE.SphereGeometry(0.4, 6, 6);
+const APPROACH_LIGHT_MAT = new THREE.MeshBasicMaterial({ color: "#ffffff", vertexColors: true });
+const APPROACH_ON_COLOR = new THREE.Color("#ffffff");
+const APPROACH_OFF_COLOR = new THREE.Color("#1a1a1c");
+const APPROACH_LIGHT_POS: [number, number, number][] = Array.from({ length: APPROACH_BAR_COUNT }, (_, bar) =>
+  [-6, -3, 0, 3, 6].map((z) => [RUNWAY_X0 - 8 - bar * 6, 0.5, z] as [number, number, number])
+).flat();
+
+// Generic static-position InstancedMesh: sets every instance's matrix once
+// on mount (nothing here ever moves), used for the light fields above and
+// for CargoYard's containers.
+function InstancedStatic({
+  positions,
+  geometry,
+  mat,
+  castShadow = false,
+}: {
+  positions: [number, number, number][];
+  geometry: THREE.BufferGeometry;
+  mat: THREE.Material;
+  castShadow?: boolean;
+}) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const m = new THREE.Matrix4();
+    positions.forEach(([x, y, z], i) => {
+      m.makeTranslation(x, y, z);
+      mesh.setMatrixAt(i, m);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [positions]);
+  if (positions.length === 0) return null;
+  return <instancedMesh ref={ref} args={[geometry, mat, positions.length]} castShadow={castShadow} />;
+}
 
 // ---- perimeter fence + gate ----
 // The gate is centred on GATE_CZ = -50 (local) = world z 50, which is a real
@@ -244,31 +338,14 @@ function RunwayMarkings() {
 // would cost more than the whole rest of the airport put together), the bloom
 // pass is what makes them glow at night.
 function RunwayLights() {
-  const xs: number[] = [];
-  for (let x = RUNWAY_X0; x <= RUNWAY_X1; x += 20) xs.push(x);
-  const edgeZ = RUNWAY_W / 2 + 2.5;
   return (
     <group position={[0, 0, RUNWAY_Z]}>
-      {xs.map((x) =>
-        [edgeZ, -edgeZ].map((z) => (
-          <mesh key={`${x}:${z}`} position={[x, 0.45, z]} material={LIGHT_WHITE}>
-            <sphereGeometry args={[0.42, 6, 6]} />
-          </mesh>
-        ))
-      )}
-      {[-18, -12, -6, 0, 6, 12, 18].map((z) => (
-        <mesh key={`g${z}`} position={[RUNWAY_X0 - 1.5, 0.4, z]} material={LIGHT_GREEN}>
-          <sphereGeometry args={[0.42, 6, 6]} />
-        </mesh>
-      ))}
-      {[-18, -12, -6, 0, 6, 12, 18].map((z) => (
-        <mesh key={`r${z}`} position={[RUNWAY_X1 + 1.5, 0.4, z]} material={LIGHT_RED}>
-          <sphereGeometry args={[0.42, 6, 6]} />
-        </mesh>
-      ))}
-      {/* PAPI: two white, two red */}
+      <InstancedStatic positions={RUNWAY_WHITE_LIGHT_POS} geometry={LIGHT_SPHERE_042_GEO} mat={LIGHT_WHITE} />
+      <InstancedStatic positions={RUNWAY_GREEN_LIGHT_POS} geometry={LIGHT_SPHERE_042_GEO} mat={LIGHT_GREEN} />
+      <InstancedStatic positions={RUNWAY_RED_LIGHT_POS} geometry={LIGHT_SPHERE_042_GEO} mat={LIGHT_RED} />
+      {/* PAPI: two white, two red — only 4, left as plain meshes */}
       {[0, 1, 2, 3].map((i) => (
-        <mesh key={`p${i}`} position={[RUNWAY_X0 + 100, 0.9, -edgeZ - 8 - i * 3]} material={i < 2 ? LIGHT_WHITE : LIGHT_RED}>
+        <mesh key={`p${i}`} position={[RUNWAY_X0 + 100, 0.9, -RUNWAY_EDGE_Z - 8 - i * 3]} material={i < 2 ? LIGHT_WHITE : LIGHT_RED}>
           <boxGeometry args={[1.6, 0.8, 1.4]} />
         </mesh>
       ))}
@@ -277,43 +354,46 @@ function RunwayLights() {
 }
 
 // Sequenced approach lighting ("the rabbit") off the 09 threshold: five bars
-// strobing inbound, one every ~0.13s. One shared material per bar, recoloured
-// in place — same trick ControlTowerBeacon uses for its single lamp.
-const ALS_MATS = Array.from({ length: 5 }, () => new THREE.MeshBasicMaterial({ color: "#101010" }));
+// strobing inbound, one every ~0.13s. One InstancedMesh (APPROACH_LIGHT_GEO/
+// _MAT/_POS, module scope) recoloured per-instance via setColorAt instead of
+// swapping 5 shared materials across 25 separate meshes.
 function ApproachLights() {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const m = new THREE.Matrix4();
+    APPROACH_LIGHT_POS.forEach(([x, y, z], i) => {
+      m.makeTranslation(x, y, z);
+      mesh.setMatrixAt(i, m);
+      mesh.setColorAt(i, APPROACH_OFF_COLOR);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, []);
   useFrame((state) => {
+    const mesh = ref.current;
+    if (!mesh) return;
     const step = Math.floor(state.clock.elapsedTime / 0.13) % 9;
-    for (let i = 0; i < ALS_MATS.length; i++) ALS_MATS[i].color.set(step === i ? "#ffffff" : "#1a1a1c");
+    for (let bar = 0; bar < APPROACH_BAR_COUNT; bar++) {
+      const color = step === bar ? APPROACH_ON_COLOR : APPROACH_OFF_COLOR;
+      for (let j = 0; j < APPROACH_LIGHTS_PER_BAR; j++) mesh.setColorAt(bar * APPROACH_LIGHTS_PER_BAR + j, color);
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
   return (
     <group position={[0, 0, RUNWAY_Z]}>
-      {ALS_MATS.map((mat, i) => (
-        <group key={i} position={[RUNWAY_X0 - 8 - i * 6, 0.5, 0]}>
-          {[-6, -3, 0, 3, 6].map((z) => (
-            <mesh key={z} position={[0, 0, z]} material={mat}>
-              <sphereGeometry args={[0.4, 6, 6]} />
-            </mesh>
-          ))}
-        </group>
-      ))}
+      <instancedMesh ref={ref} args={[APPROACH_LIGHT_GEO, APPROACH_LIGHT_MAT, APPROACH_LIGHT_POS.length]} />
     </group>
   );
 }
 
 function TaxiwayMarkings() {
-  const xs: number[] = [];
-  for (let x = RUNWAY_X0; x <= RUNWAY_X1; x += 40) xs.push(x);
   return (
     <group>
       {/* taxiway centreline + blue edge lights */}
       <Stripe x={0} z={TAXI_Z} w={RUNWAY_LEN} d={0.8} mat={YELLOW_LINE_MAT} y={0.07} />
-      {xs.map((x) =>
-        [TAXI_W / 2 + 1.5, -TAXI_W / 2 - 1.5].map((dz) => (
-          <mesh key={`${x}:${dz}`} position={[x, 0.4, TAXI_Z + dz]} material={LIGHT_BLUE}>
-            <sphereGeometry args={[0.38, 6, 6]} />
-          </mesh>
-        ))
-      )}
+      <InstancedStatic positions={TAXI_BLUE_LIGHT_POS} geometry={LIGHT_SPHERE_038_GEO} mat={LIGHT_BLUE} />
       {/* connector centrelines + hold-short bars */}
       {CONNECTOR_XS.map((x) => (
         <group key={x}>
@@ -604,29 +684,11 @@ function FloodMast({ x, z }: { x: number; z: number }) {
 }
 
 function CargoYard() {
-  const rows: React.ReactElement[] = [];
-  let i = 0;
-  for (let x = -20; x <= 20; x += 13) {
-    for (let z = -46; z <= -20; z += 8) {
-      const stack = 1 + ((i * 7) % 3);
-      for (let s = 0; s < stack; s++) {
-        rows.push(
-          <mesh
-            key={`c${x}:${z}:${s}`}
-            position={[x, 1.6 + s * 3.1, z]}
-            material={CONTAINER_MATS[(i + s) % CONTAINER_MATS.length]}
-            castShadow
-          >
-            <boxGeometry args={[12, 3, 6.4]} />
-          </mesh>
-        );
-      }
-      i++;
-    }
-  }
   return (
     <group position={[CARGO_X, 0, CARGO_Z]}>
-      {rows}
+      {CONTAINER_MATS.map((mat, idx) => (
+        <InstancedStatic key={idx} positions={CARGO_CONTAINER_POS_BY_MAT[idx]} geometry={CARGO_CONTAINER_GEO} mat={mat} castShadow />
+      ))}
       {/* cargo shed */}
       <mesh position={[0, 9, 46]} material={HANGAR_WALL_MAT} castShadow receiveShadow>
         <boxGeometry args={[70, 18, 34]} />

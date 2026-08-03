@@ -113,6 +113,23 @@ export const BUS_HANDLING: CarHandling = {
   dragQ: 0.002,
 };
 
+// MILITARY BASE's mountable tank (components/Tank.tsx) — same shape as every
+// other CarHandling (tracks/tyres both just resolve to forward+lateral
+// velocity here), but slower than even the bus, with the highest grip and
+// turnGain in the game: real tracked vehicles pivot sharply and don't slide,
+// unlike a wheeled vehicle's tyre-grip model. Top speed capped low — this is
+// a war machine, not a getaway car.
+export const TANK_HANDLING: CarHandling = {
+  max: 14,
+  accel: 5,
+  grip: 12,
+  turnGain: 1.4,
+  steerRamp: 3.2,
+  steerMin: 0.2,
+  drag: 0.5,
+  dragQ: 0.0022,
+};
+
 export interface CarInput {
   forward: boolean;
   back: boolean;

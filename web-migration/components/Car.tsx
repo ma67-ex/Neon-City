@@ -14,9 +14,11 @@ import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { teleportRequest } from "@/lib/clubTeleport";
+import { requestPlayerTeleport } from "@/lib/playerTeleport";
+import { carDestroyRequest } from "@/lib/vehicleDestroy";
 import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
-import { SHORE_X, DROWN_RESPAWN, clampFromWater } from "@/lib/marina";
+import { SHORE_X, DROWN_RESPAWN, clampFromWater, isOnBridgeOrBase, groundYAt } from "@/lib/marina";
 import { SupercarBody, styleFor, RIDE_HEIGHT, type CarStyle, type Detail } from "@/components/SupercarBody";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
@@ -24,6 +26,10 @@ const GRAVITY_PULL = -12; // m/s^2 fed into the character controller so it stays
 const NITRO_MAX = 10; // seconds of fuel — same numbers as the original's NITRO_MAX/NITRO_BOOST
 const NITRO_BOOST = 41.7; // +150 km/h over the car's normal top speed while boosting
 const DROWN_LIMIT = 2; // seconds past the shore before respawn — mirrors Player.tsx's on-foot drowning
+// A tank shell hit: stop, burn black, vanish, respawn — user's own numbers
+// ("2, 3, or maybe 5 seconds"), picked the middle of that range.
+const BURN_DURATION = 4;
+const CAR_RESPAWN = { x: 0, z: 0, h: 0 }; // same clear spot the game already spawns a fresh car at
 
 export function Car() {
   const { world } = useRapier();
@@ -41,6 +47,7 @@ export function Car() {
   const fallSpeed = useRef(0);
   const drownTime = useRef(0);
   const crashCooldown = useRef(0);
+  const destroyedUntil = useRef(0); // 0 = alive; else state.clock.elapsedTime this car respawns at
   const nitroFuel = useRef(NITRO_MAX);
   const nitroLocked = useRef(false); // true from empty tank until a full recharge — blocks re-triggering on a half-full tank
   const camPos = useRef(new THREE.Vector3(0, 4, -10));
@@ -83,6 +90,37 @@ export function Car() {
       worldState.px = teleportRequest.x;
       worldState.pz = teleportRequest.z;
       worldState.heading = teleportRequest.h;
+      return;
+    }
+
+    // tank-shell destroy (lib/vehicleDestroy.ts, components/TankCombat.tsx):
+    // stop, stash out of view, force the player out on foot if they were
+    // driving it, then respawn fresh once the burn duration elapses. The
+    // burning-wreck visual itself lives in TankCombat.tsx, not here — this
+    // component just needs to get the real car out of the way and back.
+    if (carDestroyRequest.pending) {
+      carDestroyRequest.pending = false;
+      destroyedUntil.current = state.clock.elapsedTime + BURN_DURATION;
+      car.current.speed = 0;
+      car.current.vLat = 0;
+      body.setTranslation({ x: vehicleState.car.x, y: -200, z: vehicleState.car.z }, true);
+      if (isActive) {
+        requestPlayerTeleport(vehicleState.car.x, vehicleState.car.z, car.current.h, groundYAt(vehicleState.car.x, vehicleState.car.z) + 1);
+        useHudStore.getState().setActive("foot");
+        useHudStore.getState().showMsg("VEHICLE DESTROYED");
+      }
+      return;
+    }
+    if (destroyedUntil.current > 0) {
+      if (state.clock.elapsedTime < destroyedUntil.current) return;
+      destroyedUntil.current = 0;
+      body.setTranslation({ x: CAR_RESPAWN.x, y: groundYAt(CAR_RESPAWN.x, CAR_RESPAWN.z) + RIDE_HEIGHT, z: CAR_RESPAWN.z }, true);
+      car.current.h = CAR_RESPAWN.h;
+      car.current.speed = 0;
+      car.current.vLat = 0;
+      vehicleState.car.x = CAR_RESPAWN.x;
+      vehicleState.car.z = CAR_RESPAWN.z;
+      vehicleState.car.h = CAR_RESPAWN.h;
       return;
     }
 
@@ -143,8 +181,11 @@ export function Car() {
 
     // drowning safety net: the shore wall (Marina.tsx) keeps this unreachable
     // in normal play, but respawn at POLICE HARBOR instead of leaving the car
-    // falling forever if it ever ends up past the coastline
-    if (nextPos.x >= SHORE_X) {
+    // falling forever if it ever ends up past the coastline. Exempt I-94's
+    // bridge/FORT NEON's platform (lib/marina.ts's isOnBridgeOrBase) — both
+    // real, elevated structures well past SHORE_X that this x-only check
+    // can't otherwise tell apart from open water.
+    if (nextPos.x >= SHORE_X && !isOnBridgeOrBase(nextPos)) {
       drownTime.current += d;
       if (drownTime.current > DROWN_LIMIT) {
         drownTime.current = 0;
@@ -196,6 +237,7 @@ export function Car() {
     body.setNextKinematicRotation(q);
 
     vehicleState.car.x = nextPos.x;
+    vehicleState.car.y = nextPos.y;
     vehicleState.car.z = nextPos.z;
     vehicleState.car.h = car.current.h;
     vehicleState.car.speed = car.current.speed;
@@ -225,7 +267,12 @@ export function Car() {
   });
 
   return (
-    <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={[save?.x ?? 0, RIDE_HEIGHT, save?.z ?? 0]}>
+    <RigidBody
+      ref={bodyRef}
+      type="kinematicPosition"
+      colliders={false}
+      position={[save?.x ?? 0, groundYAt(save?.x ?? 0, save?.z ?? 0) + RIDE_HEIGHT, save?.z ?? 0]}
+    >
       {/* Dropped so the collider's BOTTOM face lands on the tyre contact patch
           rather than on the mesh origin. Centred, snapToGround parked the
           chassis at half the box height (0.65) and buried the car 0.33m. */}
