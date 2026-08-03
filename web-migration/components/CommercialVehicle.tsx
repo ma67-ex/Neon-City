@@ -7,6 +7,7 @@ import { VEHICLE_BODY_GROUPS, VEHICLE_SWEEP_GROUPS } from "@/lib/collisionGroups
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepCarPhysics, JEEP_HANDLING, BUS_HANDLING, TRUCK_HANDLING, type CarState, type CarHandling } from "@/lib/carPhysics";
+import { NITRO_MAX, NITRO_BOOST, NITRO_ACCEL_MULT, initNitroFuel, stepNitroFuel } from "@/lib/nitro";
 import { useHudStore } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { fellOutOfWorld } from "@/lib/fallGuard";
@@ -48,8 +49,9 @@ const SPEC: Record<
 // character-controller/gravity/camera boilerplate; a fourth+fifth+sixth land
 // vehicle is exactly the point that file's own comment says to eventually
 // pull into a shared hook), parametrized over CommercialKind instead of
-// tripling the file. No nitro (that's the sedan's own gimmick) and no
-// drowning respawn (PoliceCar.tsx skips that too, same reasoning applies).
+// tripling the file. Nitro now shared via lib/nitro.ts (used to be the
+// sedan's own gimmick only). Still no drowning respawn (PoliceCar.tsx skips
+// that too, same reasoning applies).
 export function CommercialVehicle({ kind, color }: { kind: CommercialKind; color: string }) {
   const { world } = useRapier();
   const bodyRef = useRef<RapierRigidBody>(null);
@@ -60,6 +62,7 @@ export function CommercialVehicle({ kind, color }: { kind: CommercialKind; color
 
   const [save] = useState(() => loadSave()?.vehicles[kind] ?? null);
   const car = useRef<CarState>({ h: save?.h ?? vehicleState[kind].h, speed: 0, vLat: 0, steerAng: 0 });
+  const nitro = useRef(initNitroFuel());
   const fallSpeed = useRef(0);
   const crashCooldown = useRef(0);
   const camPos = useRef(new THREE.Vector3(0, 4, -10));
@@ -102,10 +105,17 @@ export function CommercialVehicle({ kind, color }: { kind: CommercialKind; color
 
     const k = keys.current;
     const steer = isActive ? (k.left ? 1 : 0) - (k.right ? 1 : 0) : 0;
+    const wantNitro = isActive && k.forward && k.boost;
+    const nitroOn = stepNitroFuel(nitro.current, wantNitro, d);
+    const handling = nitroOn
+      ? { ...spec.handling, accel: spec.handling.accel * NITRO_ACCEL_MULT, max: spec.handling.max + NITRO_BOOST }
+      : spec.handling;
+    if (isActive) useHudStore.getState().setNitro(nitro.current.fuel / NITRO_MAX, nitroOn);
+
     const { dx, dz } = stepCarPhysics(
       car.current,
       { forward: isActive && k.forward, back: isActive && k.back, steer, handbrake: isActive && k.handbrake },
-      spec.handling,
+      handling,
       d
     );
 
