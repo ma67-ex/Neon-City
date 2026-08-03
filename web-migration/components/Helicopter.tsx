@@ -7,51 +7,65 @@ import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepFlight, HELI_HANDLING, type FlightState } from "@/lib/flightPhysics";
 import { NITRO_MAX, NITRO_BOOST, NITRO_ACCEL_MULT, initNitroFuel, stepNitroFuel } from "@/lib/nitro";
-import { useHudStore } from "@/lib/hudStore";
+import { useHudStore, type VehicleKind } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { roofHeightAt } from "@/lib/buildings";
+import { groundYAt } from "@/lib/marina";
 
 // Parked on REGIONAL AIRPORT's helipad (components/Airport.tsx), mounted by
 // walking up + E — near-identical rig to Plane.tsx, sharing lib/flightPhysics.ts
 // with HELI_HANDLING instead of PLANE_HANDLING (liftMinSpeed 0, so unlike the
 // plane this one holds altitude with zero forward speed — true hover). Same
 // control scheme as the plane: W/S throttle, A/D yaw, SPACE climb, SHIFT descend.
-export function Helicopter() {
+//
+// Parameterized over `kind`/`bodyMat` (same shape as components/PoliceCar.tsx's
+// own `kind` prop and components/Boat.tsx's `kind`/`spawn`) so FORT NEON's
+// second helipad — the one lib/militaryBase.ts always defined but nothing ever
+// filled — gets a real drivable olive-drab chopper out of this same rig
+// instead of a second copy of the file.
+export function Helicopter({
+  kind = "helicopter",
+  bodyMat,
+}: { kind?: VehicleKind; bodyMat?: THREE.Material } = {}) {
   const bodyRef = useRef<RapierRigidBody>(null);
   const rotorRef = useRef<THREE.Group>(null);
   const tailRotorRef = useRef<THREE.Group>(null);
   const keys = useKeyboard();
   const { camera } = useThree();
 
-  const [save] = useState(() => loadSave()?.vehicles.helicopter ?? null);
-  const fs = useRef<FlightState>({ h: save?.h ?? vehicleState.helicopter.h, pitch: 0, roll: 0, speed: 0, vy: 0 });
+  const [save] = useState(() => loadSave()?.vehicles[kind] ?? null);
+  const fs = useRef<FlightState>({ h: save?.h ?? vehicleState[kind].h, pitch: 0, roll: 0, speed: 0, vy: 0 });
   const nitro = useRef(initNitroFuel());
-  const pos = useRef({
-    x: save?.x ?? vehicleState.helicopter.x,
-    z: save?.z ?? vehicleState.helicopter.z,
-    y: HELI_HANDLING.groundClearance,
-  });
-  const camPos = useRef(
-    new THREE.Vector3((save?.x ?? vehicleState.helicopter.x) - 8, HELI_HANDLING.groundClearance + 5, (save?.z ?? vehicleState.helicopter.z) - 8)
-  );
+  // spawn height is measured off the real ground under the pad, not sea level
+  // — FORT NEON's helipads sit on its own elevated platform (lib/marina.ts's
+  // groundYAt resolves the bridge deck and the base platform; a bare
+  // groundClearance would bury this chopper ~9 units under the pad).
+  const spawnX = save?.x ?? vehicleState[kind].x;
+  const spawnZ = save?.z ?? vehicleState[kind].z;
+  const spawnY = groundYAt(spawnX, spawnZ) + HELI_HANDLING.groundClearance;
+  const pos = useRef({ x: spawnX, z: spawnZ, y: spawnY });
+  const camPos = useRef(new THREE.Vector3(spawnX - 8, spawnY + 5, spawnZ - 8));
   const camLook = useRef(new THREE.Vector3());
 
   useFrame((state, dt) => {
     const body = bodyRef.current;
     if (!body) return;
     const d = Math.min(dt, 0.05);
-    const isActive = useHudStore.getState().active === "helicopter";
+    const isActive = useHudStore.getState().active === kind;
 
     const k = keys.current;
     const yaw = isActive ? (k.right ? 1 : 0) - (k.left ? 1 : 0) : 0;
     // see Plane.tsx's identical comment: only respect a roof as the floor
     // once already close to it, so drifting under a building at low altitude
-    // doesn't snap the heli straight up onto its roof
+    // doesn't snap the heli straight up onto its roof.
+    // The non-roof floor is groundYAt, not a flat 0 — over FORT NEON's
+    // platform or I-94's deck the real ground is well above sea level, and a
+    // hardcoded 0 would let the chopper descend straight through it.
     const roof = roofHeightAt(pos.current.x, pos.current.z);
-    const groundY = pos.current.y >= roof - 5 ? roof : 0;
+    const groundY = pos.current.y >= roof - 5 ? roof : groundYAt(pos.current.x, pos.current.z);
     // nitro: SHIFT+forward, same rig as Plane.tsx (lib/nitro.ts) — SHIFT also
     // means "descend" here, same double-duty tradeoff.
     const wantNitro = isActive && k.forward && k.boost;
@@ -87,10 +101,10 @@ export function Helicopter() {
     if (rotorRef.current) rotorRef.current.rotation.y += rotorSpeed * d;
     if (tailRotorRef.current) tailRotorRef.current.rotation.x += rotorSpeed * 1.6 * d;
 
-    vehicleState.helicopter.x = pos.current.x;
-    vehicleState.helicopter.z = pos.current.z;
-    vehicleState.helicopter.h = fs.current.h;
-    vehicleState.helicopter.y = pos.current.y;
+    vehicleState[kind].x = pos.current.x;
+    vehicleState[kind].z = pos.current.z;
+    vehicleState[kind].h = fs.current.h;
+    vehicleState[kind].y = pos.current.y;
 
     if (!isActive) return;
     worldState.px = pos.current.x;
@@ -121,9 +135,9 @@ export function Helicopter() {
       ref={bodyRef}
       type="kinematicPosition"
       colliders={false}
-      position={[vehicleState.helicopter.x, HELI_HANDLING.groundClearance, vehicleState.helicopter.z]}
+      position={[spawnX, spawnY, spawnZ]}
     >
-      <HeliMesh rotorRef={rotorRef} tailRotorRef={tailRotorRef} />
+      <HeliMesh rotorRef={rotorRef} tailRotorRef={tailRotorRef} bodyMat={bodyMat} />
     </RigidBody>
   );
 }
