@@ -6,6 +6,7 @@ import { RigidBody, type RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { useKeyboard } from "@/lib/useKeyboard";
 import { stepFlight, AIRLINER_HANDLING, type FlightState } from "@/lib/flightPhysics";
+import { NITRO_MAX, NITRO_BOOST, NITRO_ACCEL_MULT, initNitroFuel, stepNitroFuel } from "@/lib/nitro";
 import { useHudStore, type AirlinerId } from "@/lib/hudStore";
 import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
@@ -35,6 +36,7 @@ export function DrivableAirliner({ id, liveryColor, cargo }: { id: AirlinerId; l
   const base = vehicleState[id];
   const [save] = useState(() => loadSave()?.vehicles[id] ?? null);
   const fs = useRef<FlightState>({ h: save?.h ?? base.h, pitch: 0, roll: 0, speed: 0, vy: 0 });
+  const nitro = useRef(initNitroFuel());
   const pos = useRef({ x: save?.x ?? base.x, z: save?.z ?? base.z, y: AIRLINER_HANDLING.groundClearance });
   const camPos = useRef(
     new THREE.Vector3((save?.x ?? base.x) - 26, AIRLINER_HANDLING.groundClearance + 12, (save?.z ?? base.z) - 26)
@@ -53,10 +55,18 @@ export function DrivableAirliner({ id, liveryColor, cargo }: { id: AirlinerId; l
     // once already close to it
     const roof = roofHeightAt(pos.current.x, pos.current.z);
     const groundY = pos.current.y >= roof - 5 ? roof : 0;
+    // nitro: SHIFT+forward, same rig as Plane.tsx (lib/nitro.ts)
+    const wantNitro = isActive && k.forward && k.boost;
+    const nitroOn = stepNitroFuel(nitro.current, wantNitro, d);
+    const handling = nitroOn
+      ? { ...AIRLINER_HANDLING, accel: AIRLINER_HANDLING.accel * NITRO_ACCEL_MULT, maxSpeed: AIRLINER_HANDLING.maxSpeed + NITRO_BOOST }
+      : AIRLINER_HANDLING;
+    if (isActive) useHudStore.getState().setNitro(nitro.current.fuel / NITRO_MAX, nitroOn);
+
     const { dx, dz, y } = stepFlight(
       fs.current,
       { forward: isActive && k.forward, back: isActive && k.back, yaw, climb: isActive && k.handbrake, descend: isActive && k.boost },
-      AIRLINER_HANDLING,
+      handling,
       d,
       pos.current.y,
       groundY
