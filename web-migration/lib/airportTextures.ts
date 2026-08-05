@@ -9,7 +9,9 @@
 // see app/page.tsx).
 import * as THREE from "three";
 
-function tex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) {
+// Exported so components/AirlinerCockpit.tsx can bake its own instrument-face
+// textures with this exact convention instead of reinventing it.
+export function tex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) {
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;

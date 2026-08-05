@@ -1,5 +1,16 @@
 "use client";
 
+// @refresh reset — Fast Refresh's default in-place hot patch tries to diff
+// the live Three.js scene graph (materials/textures/objects) against the
+// previous one on every edit to this file. THREE.Texture defines a toJSON()
+// so it degrades to a console warning ("Unable to serialize Texture"), but a
+// plain Object3D/Group doesn't, and its circular parent/children refs throw
+// "Converting circular structure to JSON" the moment R3F's HMR bookkeeping
+// tries to stringify one — crashing the page on any hot-reloaded edit (this
+// file, or any pulled/checked-out change that touches it) while a Canvas is
+// mounted. This directive makes React Refresh fully unmount+remount Game on
+// every change instead of hot-patching it, which never runs that diff path.
+// Full remount is fine here: saveGame's autosave restores state right after.
 import { Suspense, useEffect, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";

@@ -30,6 +30,24 @@ export interface CameraRigArgs {
   // cab actually puts them instead of at sedan seat height.
   cockpitEyeHeight?: number;
   cockpitForward?: number;
+  // camMode===1, four-wheelers-only branch's along-heading eye lean —
+  // default 0.15 matches every existing car/bus/truck's small fixed lean
+  // (cockpitForward there is a lateral seat offset, not a distance).
+  // components/DrivableAirliner.tsx needs a real one: its target position is
+  // the fuselage centre, but the flight deck sits ~22m up at the nose, so it
+  // passes a big cockpitAhead instead of relying on the fixed lean.
+  cockpitAhead?: number;
+  // camMode===1&&!isBike's look-AT target distance/drop — default 30/0.9
+  // matches every existing car/bus/truck (a shallow, nearly-level glance:
+  // atan(0.9/30)~1.7 deg down works when the dash sits close to eye level).
+  // A helicopter/small-plane panel sits both close (~0.15-0.3m ahead) AND
+  // well below eye level (~0.3-0.4m) — that combination needs a real steep
+  // glance down at a near point, which the 30-unit-ahead default can't ever
+  // produce (the far target dominates the angle regardless of lookDrop).
+  // components/Helicopter.tsx/Plane.tsx pass a small cockpitLookAhead (close
+  // to the panel's own distance) instead of overriding lookDrop alone.
+  cockpitLookAhead?: number;
+  cockpitLookDrop?: number;
 }
 
 // Speed-FOV widen, ported from the original's tick() (index.html ~7704-7705):
@@ -63,6 +81,9 @@ export function applyCameraRig({
   chaseHeight = 4.2,
   cockpitEyeHeight = 1.3,
   cockpitForward = -0.35,
+  cockpitAhead = 0.15,
+  cockpitLookAhead = 30,
+  cockpitLookDrop,
 }: CameraRigArgs) {
   applySpeedFov(camera, camMode, isBike, speedMs, dt);
   const dx = Math.sin(th);
@@ -97,10 +118,10 @@ export function applyCameraRig({
     // cockpit / hood
     let ex: number, ey: number, ez: number, lookDrop = 2.2;
     if (camMode === 1 && !isBike) {
-      ex = tx + Math.cos(th) * cockpitForward + dx * 0.15;
-      ez = tz - Math.sin(th) * cockpitForward + dz * 0.15;
+      ex = tx + Math.cos(th) * cockpitForward + dx * cockpitAhead;
+      ez = tz - Math.sin(th) * cockpitForward + dz * cockpitAhead;
       ey = ty + cockpitEyeHeight;
-      lookDrop = 0.9;
+      lookDrop = cockpitLookDrop ?? 0.9;
     } else if (camMode === 1) {
       ex = tx + dx * 0.2;
       ez = tz + dz * 0.2;
@@ -111,9 +132,9 @@ export function applyCameraRig({
       ey = ty + 1.25;
     }
     camera.position.set(ex, ey, ez);
-    camera.lookAt(ex + dx * 30, ey - lookDrop, ez + dz * 30);
+    camera.lookAt(ex + dx * cockpitLookAhead, ey - lookDrop, ez + dz * cockpitLookAhead);
     camPos.copy(camera.position);
-    camLook.set(ex + dx * 30, ey - lookDrop, ez + dz * 30);
+    camLook.set(ex + dx * cockpitLookAhead, ey - lookDrop, ez + dz * cockpitLookAhead);
   } else {
     // cinematic — auto-cycling angles, same 4 phases/5s timings as the original
     const cT = time % 20;

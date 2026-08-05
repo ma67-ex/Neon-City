@@ -1983,6 +1983,135 @@ lane's elevation), `components/Car.tsx` (`carDestroyRequest` consumption,
 `components/HUD.tsx` (controls legend), `components/Game.tsx` (mounts
 `TankCombat`), `lib/vehicleState.ts` (`tank` spawn updated to `TANK_SPAWN`).
 
+## Milestone 26 — Fast Refresh crash fix, full verification pass, real cockpit interiors for all four drivable aircraft/car (2026-08-05)
+
+**Goal:** two things. First, root-cause the `Converting circular structure to
+JSON` crash that hit right after pulling a collaborator's Phase F changes —
+initially misdiagnosed as a stale Turbopack cache (wrong; that "fix" only
+looked like it worked because the follow-up test happened to be a cold start
+with no live edits). Second, the user asked to actually try every unverified
+item on the "Next up" list and fix whatever's broken, then build real cockpit
+interiors — dashboard, wheel/yoke/cyclic, gauges, switches, throttle — for
+the car, airliner, helicopter, and small plane, since `camMode===1` had been
+camera-position-only with zero interior geometry since the feature was
+first ported.
+
+**The real bug: React Refresh + R3F's HMR bookkeeping, not a cache issue.**
+`@react-three/fiber`'s dev-mode Fast Refresh support tries to diff the live
+Three.js scene graph (materials/textures/objects) against the previous one
+on every hot-patched edit to `Game.tsx` while a `<Canvas>` is mounted.
+`THREE.Texture` defines a `toJSON()` so that path degrades to a console
+warning ("Unable to serialize Texture"); a plain `Object3D`/`Group` doesn't,
+and its circular `parent`/`children` refs throw the moment that bookkeeping
+tries to `JSON.stringify` one — which is exactly what happens on *any*
+hot-reloaded edit to that file, including a `git pull` landing new file
+content while a dev server tab is open (confirmed by reproducing it via a
+live edit, not just a pull). Fix: a `// @refresh reset` directive at the top
+of `components/Game.tsx`, which makes React Refresh fully unmount+remount
+`Game` on every change instead of attempting the fragile in-place diff —
+`saveGame`'s autosave restores state right after, so a full remount costs
+nothing. Verified clean across several live edits with zero crashes, where
+every edit previously reproduced it 100% of the time.
+
+**Verification pass, all 5 previously-unconfirmed items:**
+1. **Drivable airliner end-to-end** (gate → taxi → takeoff → climb → bank
+   turn → descent) — clean, `AIRLINER_HANDLING` numbers feel right, camera
+   tracked smoothly throughout.
+2. **Small plane + helicopter flight, weather cycling** — both aircraft fly
+   clean; cycled all 6 `WEATHER` states (clear/sunny/overcast/rain/fog/snow)
+   via the `V` key; drove the car and flew the helicopter through fog/snow,
+   zero errors.
+3. **Pedestrian ragdoll hit-test** — confirmed live at both thresholds: a
+   17 km/h hit knocked a pedestrian down flat (the `fast = speedMs > 16`
+   branch's `else`), a 77 km/h hit (nitro-boosted, above the 57.6 km/h/16 m/s
+   `fast` cutoff) launched one visibly airborne mid-tumble — exactly matching
+   `Pedestrians.tsx`'s branch logic.
+4. **`dpr={1}`/`EffectComposer` vertical-split render artifact** (open since
+   Milestone 5, narrowed to a `SwiftShader`-software-rendering-only theory in
+   Milestone 12) — this session's browser pane runs on real hardware
+   (`ANGLE (Apple, ANGLE Metal Renderer: Apple M5)`, confirmed via
+   `WEBGL_debug_renderer_info`), the actual real-GPU check that was never
+   possible before. Zero trace of the artifact across dozens of screenshots.
+   Closed.
+5. **FORT NEON alert/return-fire (#19)** — confirmed still unbuilt (not a
+   bug), scoped rather than built blind: hook point is `Tank.tsx`'s
+   `fireQueue` push on `F`-press; needs a shared alert singleton (same
+   pattern as `worldState`/`weatherState`) that `PatrolSoldier`/`Soldier`/
+   `GuardTower` in `MilitaryBase.tsx` read to switch to alert pose + return
+   fire, with a cooldown to de-escalate. Not built this session.
+
+**Cockpit interiors — car, airliner, helicopter, small plane.** Built via
+four parallel agents (one per vehicle, `components/CarInterior.tsx`,
+`components/AirlinerCockpit.tsx`, `components/HeliCockpit.tsx`,
+`components/PlaneCockpit.tsx`), each mounted as a sibling inside its
+vehicle's own `<RigidBody>` so it moves/rotates for free, matching the
+game's low-poly/flat-shaded style rather than photoreal:
+- **Car**: steering wheel (rotates live with `car.current.steerAng`),
+  canvas-baked speedo/tach gauge cluster with live needles, warning-light
+  row, center console (shifter, switches, cup holders), A-pillars/headliner/
+  door panel, static mirror housing.
+- **Airliner**: dual yokes (tilt with live `fs.current.pitch`/`roll`),
+  glass-cockpit-style panel (attitude/speed-tape/altitude-tape/heading, all
+  reading live flight data), throttle quadrant, overhead switch panel,
+  two-seat flight deck framing.
+- **Helicopter**: cyclic (tilts with pitch/roll), collective (angle tied to
+  `fs.current.vy`), pedals, 5-gauge instrument panel (altimeter/airspeed/VSI/
+  rotor-RPM/artificial-horizon), canopy strut framing — shared between the
+  civilian and `militaryHeli` variants (olive trim swap only).
+- **Small plane**: center stick, 5-gauge panel (airspeed/attitude/altimeter/
+  heading/RPM), 3-lever throttle quadrant (tied to live speed), single-seat
+  framing.
+
+Two real, shared bugs found and fixed across all four during live
+verification, not just at build time:
+1. **No interior lighting** — every cabin sits under a roof/canopy, out of
+   the scene's directional sun, so all four read as near-black silhouettes
+   until a small warm `pointLight` was added per cockpit (car/heli/plane
+   tuned to avoid being close enough to the eye to blow out; airliner's
+   panel is far enough from its own light that this wasn't an issue there).
+2. **`cameraRig.ts`'s shared cockpit math couldn't frame a close panel** —
+   `camMode===1`'s look-AT target was hardcoded to 30 units ahead with a
+   fixed `lookDrop`, which produces an almost-level glance (`atan(0.9/30)
+   ≈ 1.7°` down) that works for a car dashboard sitting nearly at eye level,
+   but structurally can't aim at an aircraft panel that's both close
+   (~0.15-0.3m) and well below eye level — the far look-at target dominates
+   the angle regardless of `lookDrop`'s value. Added two new optional,
+   additive `CameraRigArgs` fields, `cockpitLookAhead`/`cockpitLookDrop`
+   (both default to the exact prior car-tuned behavior, zero change for
+   every existing vehicle), so aircraft can look AT their own close panel
+   instead. Fixed and confirmed live for the helicopter and airliner (yoke,
+   overhead switches, and gauges all clearly visible and correctly framed).
+
+**Known incomplete: the small plane's cockpit camera.** Multiple tuning
+passes converged the helicopter and airliner correctly, but the plane's
+identical-in-principle fix (eye position between the seat and panel) kept
+producing a flat, wrongly-lit wash filling the whole frame instead — not
+fully root-caused (ruled out: near-clip-plane clipping, point-light
+proximity, time-of-day/bloom coincidence, being embedded inside the seat
+mesh). `components/Plane.tsx` was reverted to its last known-safe
+configuration (`cockpitEyeHeight: 0.32, cockpitAhead: 0.85`, no
+`cockpitLookAhead`/`cockpitLookDrop` override) — prop/cowling/struts read
+correctly through the windshield and the panel is partially visible at the
+bottom edge, but it isn't dead-center like the other three. Worth a fresh,
+focused pass with the geometry re-derived from scratch rather than more
+numeric nudging.
+
+**Verification:** `npx tsc --noEmit` and `npx eslint` both clean across
+every changed/added file. Live-tested in-browser for all four vehicles
+(car/airliner/helicopter confirmed well-framed and lit; plane confirmed
+safe/non-broken but not dead-center), zero console/runtime errors.
+
+**Files added:** `components/CarInterior.tsx`, `components/
+AirlinerCockpit.tsx`, `components/HeliCockpit.tsx`, `components/
+PlaneCockpit.tsx`.
+**Files changed:** `components/Game.tsx` (`@refresh reset`), `components/
+Car.tsx` (mounts `CarInterior`), `components/DrivableAirliner.tsx` (mounts
+`AirlinerCockpit`, cockpit eye params), `components/Helicopter.tsx` (mounts
+`HeliCockpit`, cockpit eye params), `components/Plane.tsx` (mounts
+`PlaneCockpit`, cockpit eye params), `lib/cameraRig.ts`
+(`cockpitLookAhead`/`cockpitLookDrop`), `lib/airportTextures.ts` (exported
+`tex()` for reuse by the new cockpit gauge textures).
+
 ## Next up — by phase
 
 Context: Milestones 14-17 built the whole city (world scale, real physics,
@@ -2000,19 +2129,25 @@ each phase.
 
 ### Phase A — Performance — ✅ done (Milestone 23)
 
-### Phase B — Live verification, real browser (4 tasks)
+### Phase B — Live verification, real browser — ✅ done (Milestone 26)
 
-3. **Fly a drivable airliner end-to-end** — mount at a gate, taxi, take off,
-   land — to confirm `AIRLINER_HANDLING`'s first-guess numbers feel right.
-4. **Fly the small plane/helicopter + drive through weather at least once**
-   — confirm liftoff behaviour and `PLANE_HANDLING`/`HELI_HANDLING` feel
-   right (never done since Milestone 18).
-5. **Verify Milestone 13's ragdoll hit-test live** — carried over
-   unconfirmed since Milestone 13 (an HMR/dev-server issue interrupted the
-   original check).
-6. **Real-hardware check of the `dpr={1}`/`EffectComposer` render artifact**
-   — the hard vertical-split rendering bug, still only reasoned from code
-   (sandbox runs software rendering), unconfirmed since Milestone 5.
+All 4 confirmed live: airliner end-to-end, plane/helicopter flight + weather
+cycling, ragdoll hit-test (both speed thresholds), and the render-split
+artifact closed out for good on real GPU hardware.
+
+### Phase G — Cockpit interiors (1 task, Milestone 26)
+
+15. **Small plane cockpit camera framing** — `components/Plane.tsx`'s
+    `applyCameraRig` call is reverted to a known-safe-but-not-ideal
+    configuration (prop/cowling/struts read fine, panel only partially
+    visible at the bottom edge). The helicopter and airliner both got their
+    panel dead-center via the same `cockpitLookAhead`/`cockpitLookDrop`
+    fix in `lib/cameraRig.ts`; the plane's version of that same fix instead
+    produced a flat, wrongly-lit wash filling the whole frame, not yet
+    root-caused (ruled out: near-clip clipping, point-light proximity,
+    day/night timing, eye embedded in the seat mesh). Needs a fresh pass
+    with `components/PlaneCockpit.tsx`'s seat/panel/canopy coordinates
+    re-derived from scratch rather than more numeric nudging.
 
 ### Phase C — Visual/content polish (3 tasks)
 

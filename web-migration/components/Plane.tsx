@@ -13,6 +13,7 @@ import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { roofHeightAt } from "@/lib/buildings";
+import { PlaneCockpit } from "@/components/PlaneCockpit";
 
 // Small prop plane, parked on REGIONAL AIRPORT's apron (components/Airport.tsx)
 // and mounted by walking up + E, same as PatrolBoat.tsx — kinematic body,
@@ -112,6 +113,20 @@ export function Plane() {
       time: state.clock.elapsedTime,
       dt: d,
       speedMs: Math.abs(fs.current.speed),
+      // single centred seat (no lateral offset needed) sitting well forward,
+      // under the canopy bubble — see components/PlaneCockpit.tsx's own
+      // coordinate notes for how these line up with its seat/panel geometry.
+      // NOTE: pulling the eye any closer to the panel (z=1.0) than this was
+      // tried and made things worse (a flat, wrongly-lit wash filling the
+      // whole frame — almost certainly an eye/panel/canopy-glass proximity
+      // issue still not fully root-caused). This is the safe, known-good
+      // configuration: prop/cowling/struts read correctly through the
+      // windshield, panel is partially visible at the bottom edge. A
+      // dead-center panel view needs a fresh, focused pass — don't just
+      // nudge cockpitAhead further without re-deriving the geometry.
+      cockpitForward: 0,
+      cockpitEyeHeight: 0.32,
+      cockpitAhead: 0.85,
     });
 
     const grounded = pos.current.y <= groundY + PLANE_HANDLING.groundClearance + 0.02;
@@ -125,7 +140,7 @@ export function Plane() {
       colliders={false}
       position={[vehicleState.plane.x, PLANE_HANDLING.groundClearance, vehicleState.plane.z]}
     >
-      <PlaneMesh propRef={propRef} />
+      <PlaneMesh propRef={propRef} fsRef={fs} posRef={pos} />
     </RigidBody>
   );
 }
@@ -145,7 +160,15 @@ const GLASS_MAT = new THREE.MeshStandardMaterial({
 const TIRE_MAT = new THREE.MeshStandardMaterial({ color: "#121316", roughness: 0.92 });
 const PROP_MAT = new THREE.MeshStandardMaterial({ color: "#1b1e25", metalness: 0.7, roughness: 0.3 });
 
-function PlaneMesh({ propRef }: { propRef: React.RefObject<THREE.Group | null> }) {
+function PlaneMesh({
+  propRef,
+  fsRef,
+  posRef,
+}: {
+  propRef: React.RefObject<THREE.Group | null>;
+  fsRef: React.RefObject<FlightState>;
+  posRef: React.RefObject<{ x: number; z: number; y: number }>;
+}) {
   const fusGeo = useMemo(() => new THREE.CylinderGeometry(0.5, 0.38, 4.6, 14).rotateX(Math.PI / 2), []);
   return (
     <group>
@@ -181,6 +204,12 @@ function PlaneMesh({ propRef }: { propRef: React.RefObject<THREE.Group | null> }
       <mesh position={[0, 0.55, 1.15]} scale={[0.85, 0.7, 1.3]} material={GLASS_MAT} castShadow>
         <sphereGeometry args={[0.42, 12, 10]} />
       </mesh>
+
+      {/* single-seat interior: yoke/stick, instrument panel, seat + window
+          framing — components/PlaneCockpit.tsx, only really seen through
+          cockpit cam (camMode===1) but real geometry so it reads correctly
+          through the tinted canopy from other views too */}
+      <PlaneCockpit fsRef={fsRef} altRef={posRef} />
 
       {/* propeller: hub + two blades, spun in useFrame via propRef */}
       <group ref={propRef} position={[0, 0, 3.6]}>

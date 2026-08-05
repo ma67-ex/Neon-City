@@ -14,6 +14,7 @@ import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { roofHeightAt } from "@/lib/buildings";
 import { groundYAt } from "@/lib/marina";
+import { HeliCockpit } from "@/components/HeliCockpit";
 
 // Parked on REGIONAL AIRPORT's helipad (components/Airport.tsx), mounted by
 // walking up + E — near-identical rig to Plane.tsx, sharing lib/flightPhysics.ts
@@ -124,6 +125,37 @@ export function Helicopter({
       time: state.clock.elapsedTime,
       dt: d,
       speedMs: Math.abs(fs.current.speed),
+      // heli has no driver's-side offset like a car — cockpitForward is a
+      // LOCAL X offset (see lib/cameraRig.ts's camMode===1 branch), 0 keeps
+      // the eye centered under HeliCockpit.tsx's own centered instrument
+      // panel/cyclic layout instead of the sedan-tuned -0.35 default.
+      // The glass canopy bubble itself (components/Helicopter.tsx's HeliMesh,
+      // the actual cabin the pilot sits in) is a sphere at local y=0.22,
+      // z=0.75, scale [1,0.75,1.15], radius 0.62 — i.e. y spans roughly
+      // [-0.25, 0.69], z spans [0.04, 1.46]. 0.32/0.3 put the eye down inside
+      // the SOLID LOWER HULL sphere below it (y=-0.15, half-height 0.64), so
+      // the "cockpit" view was actually the inside of the painted fuselage
+      // shell, not the glass bubble — hence the big flat dome filling frame.
+      // Panel sits at z=0.5/y=0.06 inside the bubble; eye now sits properly
+      // inside the glass, above and a bit behind the panel.
+      // eye pulled back near the cyclic base (z=0.12) instead of almost on
+      // top of the panel (z=0.5) — 0.35 left only ~0.12m to the panel's
+      // front face, inside spitting distance of the camera's near=0.1 clip
+      // plane. 0.05 gives a real, readable eye-to-panel gap.
+      // seated pilot eye: well above and behind the cyclic's grip (base at
+      // y=-0.5/z=0.12, ~0.56 tall, so grip sits near y=0.06) so the stick
+      // reads as a foreground control in the lower frame instead of filling
+      // it — a real pilot looks OVER the cyclic at the panel, doesn't stare
+      // straight into it from arm's length.
+      cockpitEyeHeight: 0.5,
+      cockpitForward: 0,
+      cockpitAhead: -0.02,
+      // shared cameraRig default looks 30 units ahead — miles past this tiny
+      // cabin, producing an almost-level glance that skips straight over a
+      // panel this close/low. Look AT the panel instead: a near target + a
+      // real downward drop.
+      cockpitLookAhead: 0.55,
+      cockpitLookDrop: 0.42,
     });
 
     const grounded = pos.current.y <= groundY + HELI_HANDLING.groundClearance + 0.02;
@@ -138,6 +170,7 @@ export function Helicopter({
       position={[spawnX, spawnY, spawnZ]}
     >
       <HeliMesh rotorRef={rotorRef} tailRotorRef={tailRotorRef} bodyMat={bodyMat} />
+      <HeliCockpit kind={kind} fs={fs} pos={pos} />
     </RigidBody>
   );
 }

@@ -20,6 +20,7 @@ import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
 import { SHORE_X, DROWN_RESPAWN, clampFromWater, isOnBridgeOrBase, groundYAt } from "@/lib/marina";
 import { SupercarBody, styleFor, RIDE_HEIGHT, type CarStyle, type Detail } from "@/components/SupercarBody";
+import { CarInterior } from "@/components/CarInterior";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
 const GRAVITY_PULL = -12; // m/s^2 fed into the character controller so it stays snapped to the ground
@@ -295,6 +296,10 @@ export function Car() {
           traffic car — CarMesh pins colour/style at mount (useState), so a
           prop change alone would not repaint an already-mounted body */}
       <StolenAwareCarMesh />
+      {/* cockpit interior (dash/wheel/gauges) — only ever visible in camMode
+          1, gated per-frame inside CarInterior itself; see cameraRig.ts's
+          camMode===1 branch for the eye position this is anchored to */}
+      <CarInterior carRef={car} />
     </RigidBody>
   );
 }

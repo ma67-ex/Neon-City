@@ -13,6 +13,7 @@ import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { AirlinerMesh } from "@/components/Airliner";
+import { AirlinerCockpit } from "@/components/AirlinerCockpit";
 import { roofHeightAt } from "@/lib/buildings";
 
 // Any statically parked wide-body the player can walk up to and fly — same
@@ -109,6 +110,22 @@ export function DrivableAirliner({ id, liveryColor, cargo }: { id: AirlinerId; l
       // the ~28m tail with real margin instead.
       chaseDist: 48,
       chaseHeight: 18,
+      // cockpit mode (camMode===1): flight deck sits ~21m ahead of the
+      // fuselage centre and well above it, nothing like the sedan-shaped
+      // default this falls back to otherwise — see the captain Seat/Yoke in
+      // AirlinerCockpit.tsx. Seat backrest spans local z~[20.45,20.59],
+      // panel sits at z=21.3 — the original 22 put the eye PAST the panel
+      // (looking back through/into its own mesh, the flat-grey-wash bug),
+      // same root cause as components/Plane.tsx's identical fix. 20.95
+      // clears the seat and sits short of the panel.
+      cockpitEyeHeight: 1.9,
+      cockpitForward: -0.9,
+      cockpitAhead: 20.95,
+      // shared cameraRig default looks 30 units ahead — miles past this
+      // flight deck, producing an almost-level glance that skips the panel
+      // entirely. Look AT it instead: a near target + a real downward drop.
+      cockpitLookAhead: 0.5,
+      cockpitLookDrop: 1.3,
     });
 
     const grounded = pos.current.y <= groundY + AIRLINER_HANDLING.groundClearance + 0.02;
@@ -123,6 +140,7 @@ export function DrivableAirliner({ id, liveryColor, cargo }: { id: AirlinerId; l
       position={[base.x, AIRLINER_HANDLING.groundClearance, base.z]}
     >
       <AirlinerMesh liveryColor={liveryColor} cargo={cargo} />
+      <AirlinerCockpit fs={fs} pos={pos} />
     </RigidBody>
   );
 }
