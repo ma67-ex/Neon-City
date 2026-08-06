@@ -2,8 +2,14 @@ import { vehicleState } from "@/lib/vehicleState";
 import { skyState } from "@/lib/skyState";
 import { useHudStore, type ActiveMode, type CamMode, type LightMode } from "@/lib/hudStore";
 import { isMuted } from "@/lib/audio";
+import { useAuthStore } from "@/lib/authStore";
 
-const SAVE_KEY = "ncd_web_save_v1";
+// namespaced per signed-in Google account so each player resumes their own
+// save — Login gates Game from ever mounting while user is null, so by the
+// time any component here calls loadSave/saveGame there's always a user
+function saveKey(): string {
+  return `ncd_web_save_v1:${useAuthStore.getState().user?.id ?? "guest"}`;
+}
 
 interface SaveData {
   active: ActiveMode;
@@ -25,7 +31,7 @@ interface SaveData {
 export function loadSave(): SaveData | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(saveKey());
     if (!raw) return null;
     return JSON.parse(raw) as SaveData;
   } catch {
@@ -46,7 +52,7 @@ export function saveGame() {
       dayPhase: skyState.phase,
       vehicles: vehicleState,
     };
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    localStorage.setItem(saveKey(), JSON.stringify(data));
   } catch {
     // storage full/unavailable — not worth surfacing to the player
   }

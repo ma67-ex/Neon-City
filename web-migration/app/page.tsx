@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useAuthStore } from "@/lib/authStore";
+import { Login } from "@/components/Login";
 
 // Canvas/WebGL/Rapier all need the browser — no server render for the game itself.
 const Game = dynamic(() => import("@/components/Game"), {
@@ -24,5 +26,6 @@ const Game = dynamic(() => import("@/components/Game"), {
 });
 
 export default function Home() {
-  return <Game />;
+  const user = useAuthStore((s) => s.user);
+  return user ? <Game /> : <Login />;
 }
