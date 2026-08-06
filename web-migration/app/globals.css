@@ -67,9 +67,60 @@ body {
 #camsel button { background: rgba(10, 12, 20, 0.65); border: 1px solid rgba(255, 255, 255, 0.22); color: #cfd3da; font-size: 11px; padding: 4px 9px; border-radius: 7px; cursor: pointer; letter-spacing: 0.5px; }
 #camsel button.on { background: #ffd76a; color: #14161d; border-color: #ffd76a; font-weight: 700; }
 
+#logout { position: fixed; top: 14px; right: 16px; z-index: 6; background: rgba(10, 12, 20, 0.65); border: 1px solid rgba(255, 255, 255, 0.22); color: #cfd3da; font-size: 11px; padding: 5px 11px; border-radius: 7px; cursor: pointer; letter-spacing: 0.5px; }
+#logout:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.4); color: #fff; }
+
 #sensitivity { position: fixed; top: 108px; left: 16px; z-index: 6; display: flex; align-items: center; gap: 7px; background: rgba(10, 12, 20, 0.65); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 7px; padding: 5px 10px; color: #cfd3da; font-size: 10px; letter-spacing: 0.5px; }
 #sensitivity input[type="range"] { width: 90px; accent-color: #ffd76a; cursor: pointer; }
 #sensitivity span { color: #ffd76a; font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; }
+
+/* ---- login gate, shown before Game mounts (see app/page.tsx) — reuses the
+   HUD's own magenta/cyan wordmark treatment for the title so it reads as the
+   same brand mark, not a second logo ---- */
+#login { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #050814; overflow: hidden; }
+#login .bg-slides { position: absolute; inset: 0; z-index: 0; }
+#login .bg-slide { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; animation: bg-cycle 42s infinite; }
+#login .bg-slide:nth-child(1) { animation-delay: 0s; }
+#login .bg-slide:nth-child(2) { animation-delay: 6s; }
+#login .bg-slide:nth-child(3) { animation-delay: 12s; }
+#login .bg-slide:nth-child(4) { animation-delay: 18s; }
+#login .bg-slide:nth-child(5) { animation-delay: 24s; }
+#login .bg-slide:nth-child(6) { animation-delay: 30s; }
+#login .bg-slide:nth-child(7) { animation-delay: 36s; }
+#login .bg-dim { position: absolute; inset: 0; z-index: 1; background: rgba(5, 8, 20, 0.6); }
+#login::before { content: ""; position: absolute; inset: 0; z-index: 2; background: radial-gradient(ellipse 70% 45% at 50% -5%, rgba(255, 79, 216, 0.22), transparent 60%), radial-gradient(ellipse 60% 40% at 50% 105%, rgba(79, 216, 255, 0.18), transparent 60%); pointer-events: none; }
+#login .grid { position: absolute; left: 0; right: 0; bottom: 0; height: 40%; z-index: 3; background-image: linear-gradient(rgba(79, 216, 255, 0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(79, 216, 255, 0.18) 1px, transparent 1px); background-size: 64px 40px; transform: perspective(220px) rotateX(55deg); transform-origin: bottom; -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent); mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent); pointer-events: none; }
+#login .content { position: relative; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 28px; animation: login-in 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes bg-cycle {
+  0% { opacity: 0; transform: scale(1); }
+  2% { opacity: 1; transform: scale(1.02); }
+  12% { opacity: 1; transform: scale(1.12); }
+  14.28% { opacity: 0; transform: scale(1.14); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+#login .title { font-size: clamp(32px, 5vw, 52px); font-weight: 800; letter-spacing: 6px; background: linear-gradient(90deg, #ff4fd8, #4fd8ff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px rgba(255, 79, 216, 0.45)) drop-shadow(0 0 28px rgba(79, 216, 255, 0.3)); }
+#login .subtitle { color: rgba(255, 255, 255, 0.7); font-size: 14px; letter-spacing: 0.5px; margin-top: -14px; }
+#login .card { display: flex; flex-direction: column; align-items: center; gap: 14px; background: rgba(12, 15, 22, 0.85); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 16px; padding: 28px 32px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px); }
+#login .missing { color: #ffd76a; font-size: 13px; text-align: center; max-width: 320px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 215, 106, 0.3); padding: 10px 16px; border-radius: 10px; }
+#login .missing code { font-family: ui-monospace, "SF Mono", monospace; font-size: 12px; }
+
+@keyframes login-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #login .content { animation: none; }
+  #login .bg-slide { animation: none; opacity: 0; }
+  #login .bg-slide:first-child { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  #login .title { letter-spacing: 3px; }
+  #login .grid { height: 30%; }
+}
 
 @media (max-width: 900px) {
   #hud .title { font-size: 12px; letter-spacing: 2px; }
@@ -80,6 +131,7 @@ body {
   #minimap { width: 100px; height: 100px; right: 10px; }
   #camsel { left: 10px; gap: 3px; }
   #camsel button { font-size: 9px; padding: 3px 6px; }
+  #logout { top: 10px; right: 10px; font-size: 9px; padding: 4px 8px; }
   #sensitivity { left: 10px; top: 100px; padding: 4px 8px; }
   #sensitivity input[type="range"] { width: 60px; }
   #hint { font-size: 13px; bottom: 80px; padding: 6px 14px; }

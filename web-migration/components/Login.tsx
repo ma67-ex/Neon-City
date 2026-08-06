@@ -18,6 +18,8 @@ declare global {
   }
 }
 
+const BG_SLIDES = ["/login-bg/bg1.jpg", "/login-bg/bg2.jpg", "/login-bg/bg3.jpg", "/login-bg/bg4.jpg", "/login-bg/bg5.jpg", "/login-bg/bg6.jpg", "/login-bg/bg7.jpg"];
+
 export function Login() {
   const signIn = useAuthStore((s) => s.signIn);
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -46,29 +48,27 @@ export function Login() {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 24,
-        background: "#050814",
-        color: "#fff",
-        fontFamily: "monospace",
-      }}
-    >
-      <div style={{ fontSize: 28, letterSpacing: 4 }}>NEON CITY DRIVE</div>
-      {clientId ? (
-        <div ref={buttonRef} />
-      ) : (
-        <div style={{ opacity: 0.7, fontSize: 13 }}>
-          Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID — see .env.local
-        </div>
-      )}
-      <div style={{ opacity: 0.5, fontSize: 12 }}>Sign in to save and resume your progress</div>
+    <div id="login">
+      <div className="bg-slides">
+        {BG_SLIDES.map((src) => (
+          <div key={src} className="bg-slide" style={{ backgroundImage: `url(${src})` }} />
+        ))}
+      </div>
+      <div className="bg-dim" />
+      <div className="grid" />
+      <div className="content">
+        <div className="title">NEON CITY DRIVE</div>
+        <div className="subtitle">Sign in to save and resume your progress</div>
+        {clientId ? (
+          <div className="card">
+            <div ref={buttonRef} />
+          </div>
+        ) : (
+          <div className="missing">
+            Missing <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> — see <code>.env.local</code>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

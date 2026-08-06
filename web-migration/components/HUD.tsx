@@ -1,6 +1,8 @@
 "use client";
 
 import { useHudStore, CAM_MODES, type CamMode } from "@/lib/hudStore";
+import { useAuthStore } from "@/lib/authStore";
+import { saveGame } from "@/lib/saveGame";
 import { Minimap } from "@/components/Minimap";
 import { BigMap } from "@/components/BigMap";
 
@@ -67,6 +69,22 @@ function ClockDisplay() {
   return <div id="clock">{clock}</div>;
 }
 
+function LogoutButton() {
+  const signOut = useAuthStore((s) => s.signOut);
+  return (
+    <button
+      id="logout"
+      type="button"
+      onClick={() => {
+        saveGame();
+        signOut();
+      }}
+    >
+      LOG OUT
+    </button>
+  );
+}
+
 // DOM/CSS structure ported 1:1 from the original index.html's HUD (#hud,
 // #speedo, #nitrobar, #hint, #msg, #camsel, #controls, #vig, #minimap,
 // #waypoint, #mapscreen — see app/globals.css for the matching styles,
@@ -88,6 +106,8 @@ export function HUD() {
         <div className="title">NEON CITY DRIVE</div>
         <ClockDisplay />
       </div>
+
+      <LogoutButton />
 
       <Speedo />
       <NitroBar />
