@@ -11,6 +11,7 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   signIn: (user: AuthUser) => void;
+  signInGuest: () => void;
   signOut: () => void;
 }
 
@@ -37,6 +38,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   signIn: (user) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     set({ user });
+  },
+  signInGuest: () => {
+    const guest: AuthUser = { id: "guest", name: "Guest", picture: "" };
+    localStorage.setItem(USER_KEY, JSON.stringify(guest));
+    set({ user: guest });
   },
   signOut: () => {
     localStorage.removeItem(USER_KEY);

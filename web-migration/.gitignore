@@ -45,3 +45,6 @@ next-env.d.ts
 # Uncomment these before a production release to keep them out of the public tree.
 # AGENTS.md
 # CLAUDE.md
+
+# standalone login reference copy — duplicate of components/Login.tsx, never meant to ship
+login page/

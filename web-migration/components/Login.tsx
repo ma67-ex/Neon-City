@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useAuthStore, decodeCredential } from "@/lib/authStore";
 
 // minimal shape of the Google Identity Services API we touch — no @types
@@ -10,7 +11,11 @@ declare global {
     google?: {
       accounts: {
         id: {
-          initialize: (config: { client_id: string; callback: (res: { credential: string }) => void }) => void;
+          initialize: (config: {
+            client_id: string;
+            callback: (res: { credential: string }) => void;
+            error_callback?: (err: { type?: string }) => void;
+          }) => void;
           renderButton: (parent: HTMLElement, options: { theme: string; size: string; shape: string }) => void;
         };
       };
@@ -22,7 +27,9 @@ const BG_SLIDES = ["/login-bg/bg1.jpg", "/login-bg/bg2.jpg", "/login-bg/bg3.jpg"
 
 export function Login() {
   const signIn = useAuthStore((s) => s.signIn);
+  const signInGuest = useAuthStore((s) => s.signInGuest);
   const buttonRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -35,10 +42,18 @@ export function Login() {
       if (!buttonRef.current || !window.google) return;
       window.google.accounts.id.initialize({
         client_id: clientId,
-        callback: (res) => signIn(decodeCredential(res.credential)),
+        callback: (res) => {
+          try {
+            signIn(decodeCredential(res.credential));
+          } catch {
+            setError("Sign-in failed — try again");
+          }
+        },
+        error_callback: () => setError("Sign-in failed — try again"),
       });
       window.google.accounts.id.renderButton(buttonRef.current, { theme: "filled_black", size: "large", shape: "pill" });
     };
+    script.onerror = () => setError("Couldn't reach Google — check your connection");
     document.head.appendChild(script);
     return () => {
       document.head.removeChild(script);
@@ -49,25 +64,35 @@ export function Login() {
 
   return (
     <div id="login">
+      {BG_SLIDES.map((src) => (
+        <link key={src} rel="preload" as="image" href={src} />
+      ))}
       <div className="bg-slides">
         {BG_SLIDES.map((src) => (
           <div key={src} className="bg-slide" style={{ backgroundImage: `url(${src})` }} />
         ))}
       </div>
-      <div className="bg-dim" />
-      <div className="grid" />
       <div className="content">
         <div className="title">NEON CITY DRIVE</div>
         <div className="subtitle">Sign in to save and resume your progress</div>
         {clientId ? (
           <div className="card">
             <div ref={buttonRef} />
+            {error && <div className="signin-error">{error}</div>}
+            <button type="button" className="guest-btn" onClick={signInGuest}>
+              Continue as guest
+            </button>
           </div>
         ) : (
           <div className="missing">
             Missing <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> — see <code>.env.local</code>
           </div>
         )}
+        <div className="legal">
+          <Link href="/privacy">Privacy</Link>
+          <span>·</span>
+          <Link href="/terms">Terms</Link>
+        </div>
       </div>
     </div>
   );
