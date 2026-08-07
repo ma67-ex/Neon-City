@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { useHudStore } from "@/lib/hudStore";
 import { skyState } from "@/lib/skyState";
 import { loadSave } from "@/lib/saveGame";
+import { worldState } from "@/lib/worldState";
 
 // Exact colors/values from the original index.html's updateDayNight() (~line
 // 6993-7040) and its renderer/light setup (~line 3548-3582) — this file had
@@ -26,6 +27,7 @@ const SUN_DAY = new THREE.Color().setHSL(0.1, 0.5, 0.75); // original's warm day
 export function SkyCycle() {
   const { scene, gl } = useThree();
   const sunRef = useRef<THREE.DirectionalLight>(null);
+  const sunTargetRef = useRef<THREE.Object3D>(null);
   const hemiRef = useRef<THREE.HemisphereLight>(null);
   // start at night by default — the original's signature look, and the one
   // every screenshot in this migration has been judged against — unless a
@@ -62,6 +64,16 @@ export function SkyCycle() {
     if (sunRef.current) {
       sunRef.current.intensity = 0.15 + dayK * 1.1;
       sunRef.current.color.copy(SUN_NIGHT).lerp(SUN_DAY, dayK);
+      // shadow camera is a fixed-size box in the light's own local space, so
+      // moving light+target together by the same offset every frame carries
+      // that box along with the player instead of leaving it stranded at the
+      // world origin — an open map is far bigger than any frustum tight
+      // enough to keep shadow-map resolution sharp, so it has to follow
+      if (sunTargetRef.current) {
+        sunRef.current.target = sunTargetRef.current;
+        sunTargetRef.current.position.set(worldState.px, 0, worldState.pz);
+        sunRef.current.position.set(worldState.px + 60, 80, worldState.pz + 30);
+      }
     }
     if (hemiRef.current) hemiRef.current.intensity = 0.18 + dayK * 0.5;
     // brightest at night to compensate for the dark night palette. Base
@@ -84,7 +96,21 @@ export function SkyCycle() {
       <hemisphereLight ref={hemiRef} color={0xc8e0ff} groundColor={0x3a3020} intensity={0.18} />
       {/* original's fixed-intensity fillLight, never modulated by day/night */}
       <directionalLight color={0x8ab4d8} intensity={0.25} position={[-60, 40, -30]} />
-      <directionalLight ref={sunRef} position={[60, 80, 30]} castShadow intensity={0.15} />
+      <directionalLight
+        ref={sunRef}
+        position={[60, 80, 30]}
+        castShadow
+        intensity={0.15}
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0015}
+        shadow-camera-near={10}
+        shadow-camera-far={220}
+        shadow-camera-left={-90}
+        shadow-camera-right={90}
+        shadow-camera-top={90}
+        shadow-camera-bottom={-90}
+      />
+      <object3D ref={sunTargetRef} />
     </>
   );
 }

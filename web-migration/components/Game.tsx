@@ -13,8 +13,9 @@
 // Full remount is fine here: saveGame's autosave restores state right after.
 import { Suspense, useEffect, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
+import { Environment } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, N8AO, SMAA } from "@react-three/postprocessing";
 import type { BloomEffect } from "postprocessing";
 import { SkyCycle } from "@/components/SkyCycle";
 import { skyState } from "@/lib/skyState";
@@ -145,9 +146,14 @@ export default function Game() {
 
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      <Canvas shadows dpr={1} camera={{ fov: 65, near: 0.1, far: 1000 }} gl={{ toneMappingExposure: 1.5 }}>
+      <Canvas shadows="soft" dpr={[1, 2]} camera={{ fov: 65, near: 0.1, far: 1000 }} gl={{ toneMappingExposure: 1.5 }}>
         <Suspense fallback={null}>
           <SkyCycle />
+          {/* IBL only (background:false leaves SkyCycle's own scene.background/
+              fog alone) — gives metal/glass/car-paint materials something to
+              actually reflect instead of flat lighting with no environment */}
+          <Environment preset="city" background={false} />
+
           {/* runs after SkyCycle each frame (component render order = useFrame
               registration order) so it blends onto the SAME scene.fog SkyCycle
               already set this frame, rather than fighting it — see Weather.tsx */}
@@ -161,7 +167,12 @@ export default function Game() {
           <Debris />
           <TankCombat />
           <WaypointTracker />
-          <Physics gravity={[0, -9.81, 0]}>
+          {/* fixed step instead of the default "vary" (tied to render frame
+              delta) — a variable step feeds a jittery dt into Rapier every
+              frame, which reads as inconsistent/jittery driving feel under
+              any framerate variance; a fixed step decouples physics from
+              render rate (accumulator pattern, standard fixed-timestep fix) */}
+          <Physics gravity={[0, -9.81, 0]} timeStep={1 / 60}>
             <City />
             <Water />
             <Car />
@@ -222,7 +233,12 @@ export default function Game() {
               bloomPass.strength=0.18+nightK*0.72 every frame (dim by day, full glow
               at night) — DynamicBloom below ports that same formula. */}
           <EffectComposer>
+            {/* ambient occlusion first (contact/crevice shadowing before
+                bloom adds light), SMAA last (smooths the final composited
+                edges, not just the raw geometry pass) */}
+            <N8AO aoRadius={2} distanceFalloff={1} intensity={3} quality="high" />
             <DynamicBloom />
+            <SMAA />
           </EffectComposer>
         </Suspense>
       </Canvas>

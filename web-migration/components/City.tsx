@@ -381,24 +381,64 @@ const GLASS_MATS = GLASS_TINTS.map(
     }),
 );
 
-// shared tree geometry/materials — flat-shaded cylinder trunk + sphere crown,
-// no bark/leaf textures (dressing, not a hero asset, per the ask)
-const TRUNK_GEO = new THREE.CylinderGeometry(0.15, 0.21, 1, 7);
-const CROWN_GEO = new THREE.SphereGeometry(1, 8, 7);
+// shared tree geometry/materials — real photographed bark + leaf textures
+// (CC0, polyhaven.com/a/jacaranda_tree) on cheap geometry: a textured
+// cylinder trunk and alpha-cut leaf-card billboards for the crown, instead
+// of a flat-colored sphere. The full photoscanned tree mesh is 200MB+ of
+// geometry — fine for a one-off render, not for something instanced across
+// a whole city and loaded on a phone — so this borrows just the textures.
+const treeTexLoader = new THREE.TextureLoader();
+function treeTex(file: string, srgb = false) {
+  const t = treeTexLoader.load(`/textures/tree/${file}`);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const LEAF_DIFF = treeTex("leaves_diff.jpg", true);
+const LEAF_ALPHA = treeTex("leaves_alpha.png");
+const LEAF_NOR = treeTex("leaves_nor.jpg");
+const TRUNK_DIFF = treeTex("trunk_diff.jpg", true);
+const TRUNK_NOR = treeTex("trunk_nor.jpg");
+const TRUNK_ARM = treeTex("trunk_arm.jpg"); // packed AO(r)/roughness(g)/metalness(b)
+
+const TRUNK_GEO = new THREE.CylinderGeometry(0.15, 0.21, 1, 10);
+// aoMap reads the second UV channel — this geometry only has one, so the ao
+// pass would silently no-op without a uv2 to read
+TRUNK_GEO.setAttribute("uv2", TRUNK_GEO.attributes.uv);
+// unit leaf card — lobes below place 3 of these per clump, fanned around Y,
+// as a cheap "billboard cross" impostor instead of one flat card
+const LEAF_GEO = new THREE.PlaneGeometry(2, 2);
 // re-anchored to its base (default cylinder geometry is centred, which left
 // half of each branch's length going nowhere instead of reaching the canopy —
 // this makes position={x,y,z} the branch's ROOT, so scale.y=length always
 // reaches exactly `length` units from that point regardless of rotation)
 const BRANCH_GEO = new THREE.CylinderGeometry(0.03, 0.055, 1, 5).translate(0, 0.5, 0);
-const TRUNK_MAT = new THREE.MeshStandardMaterial({ color: "#5a4128", roughness: 1 });
-const BRANCH_MAT = new THREE.MeshStandardMaterial({ color: "#4a3620", roughness: 1 });
-// same 3 hues as before, plus a lighter/darker tint of each so neighbouring
-// foliage lobes on one tree read as separate clumps, not one smooth ball
-const CROWN_MATS = ["#3f7d33", "#4f8d3a", "#35702e"].flatMap((color) => {
-  const c = new THREE.Color(color);
-  const mat = (col: THREE.Color) => new THREE.MeshStandardMaterial({ color: col, roughness: 0.9 });
-  return [mat(c), mat(c.clone().offsetHSL(0, 0, 0.06)), mat(c.clone().offsetHSL(0, 0, -0.07))];
+const TRUNK_MAT = new THREE.MeshStandardMaterial({
+  map: TRUNK_DIFF,
+  normalMap: TRUNK_NOR,
+  aoMap: TRUNK_ARM,
+  roughnessMap: TRUNK_ARM,
+  roughness: 1,
 });
+const BRANCH_MAT = new THREE.MeshStandardMaterial({ color: "#4a3620", roughness: 1 });
+// subtle near-white tints (real photo detail already carries the color, unlike
+// the old flat spheres which needed saturated color to read as foliage at
+// all) so neighbouring lobes still read as separate clumps, not one texture
+// tiled flat. alphaTest (not `transparent`) treats cards as opaque with a
+// hard cutout — correct instanced-foliage choice, avoids the sorting
+// glitches full alpha blending gets with many overlapping cards.
+const CROWN_MATS = [0xffffff, 0xeee7bd, 0xcfe0c4].map(
+  (tint) =>
+    new THREE.MeshStandardMaterial({
+      map: LEAF_DIFF,
+      alphaMap: LEAF_ALPHA,
+      normalMap: LEAF_NOR,
+      color: tint,
+      alphaTest: 0.5,
+      side: THREE.DoubleSide,
+      roughness: 0.85,
+    })
+);
 
 // deterministic 0..1 jitter from world position — trees have no per-instance
 // RNG plumbed through (only x/z/h/r/matIdx), so foliage-clump placement hashes
@@ -447,7 +487,7 @@ interface BuildingSpec {
 }
 
 // unit-sized shared geometries reused across every building the same way
-// TRUNK_GEO/CROWN_GEO are shared across every tree — scaled per-instance,
+// TRUNK_GEO/LEAF_GEO are shared across every tree — scaled per-instance,
 // never rebuilt per-instance
 const UNIT_BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
 const HIP_ROOF_GEO = new THREE.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4); // 4-sided pyramid, edges aligned to a box's faces
@@ -1545,18 +1585,29 @@ function Trees({ specs }: { specs: TreeDesc[] }) {
     [specs]
   );
   const crownItems = useMemo(() => {
-    const items: { pos: [number, number, number]; scale: [number, number, number]; matIdx: number }[] = [];
+    const items: {
+      pos: [number, number, number];
+      scale: [number, number, number];
+      rot: [number, number, number];
+      matIdx: number;
+    }[] = [];
+    // 3 cards per lobe, fanned 60° apart around Y with a slight per-card tilt
+    // jitter — a "billboard cross" impostor, so each clump reads as leaf
+    // volume from any driving angle instead of a single flat card
+    const FAN = [
+      [0.15, 0, 0],
+      [0.1, Math.PI / 3, 0.05],
+      [-0.05, (2 * Math.PI) / 3, -0.1],
+    ] as const;
     specs.forEach((t) => {
       const canopyY = t.h + t.r * 0.5;
       LOBES.forEach((lobe, i) => {
         const j = hash2(t.x * 7.13 + i * 1.9, t.z * 4.31 + i * 2.7);
-        const tint = i % 3; // 0=base, 1=lighter, 2=darker — see CROWN_MATS
+        const tint = (i + t.matIdx) % CROWN_MATS.length; // rotates per tree so trees don't all match
         const s = t.r * lobe.s * (0.85 + j * 0.3);
-        items.push({
-          pos: [t.x + lobe.dx * t.r * 1.3, canopyY + lobe.dy * t.r, t.z + lobe.dz * t.r * 1.3],
-          scale: [s, s * 0.85, s],
-          matIdx: t.matIdx * 3 + tint,
-        });
+        const pos: [number, number, number] = [t.x + lobe.dx * t.r * 1.3, canopyY + lobe.dy * t.r, t.z + lobe.dz * t.r * 1.3];
+        const scale: [number, number, number] = [s, s * 0.85, s];
+        FAN.forEach((rot) => items.push({ pos, scale, rot: rot as unknown as [number, number, number], matIdx: tint }));
       });
     });
     return items;
@@ -1588,9 +1639,9 @@ function Trees({ specs }: { specs: TreeDesc[] }) {
         const items = crownItems.filter((c) => c.matIdx === matIdx);
         if (items.length === 0) return null;
         return (
-          <Instances key={matIdx} geometry={CROWN_GEO} material={mat} limit={items.length}>
+          <Instances key={matIdx} geometry={LEAF_GEO} material={mat} limit={items.length}>
             {items.map((c, i) => (
-              <Instance key={i} position={c.pos} scale={c.scale} />
+              <Instance key={i} position={c.pos} scale={c.scale} rotation={c.rot} />
             ))}
           </Instances>
         );

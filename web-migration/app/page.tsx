@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/authStore";
 import { Login } from "@/components/Login";
 
@@ -27,5 +28,12 @@ const Game = dynamic(() => import("@/components/Game"), {
 
 export default function Home() {
   const user = useAuthStore((s) => s.user);
+  // useAuthStore's initial state reads localStorage, which only exists
+  // client-side — the server always renders as signed-out. Deferring the
+  // real check to after mount keeps the client's first render matching the
+  // server's, instead of hydrating straight into a mismatch.
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => setHasMounted(true), []);
+  if (!hasMounted) return null;
   return user ? <Game /> : <Login />;
 }
