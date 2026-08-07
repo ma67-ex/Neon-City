@@ -3,12 +3,12 @@
 import type { RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody, CuboidCollider } from "@react-three/rapier";
-import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { useHudStore } from "@/lib/hudStore";
 import { CLUB } from "@/lib/club";
 import { computeHint } from "@/lib/hint";
 import { PersonFigure } from "@/components/PersonFigure";
+import { CLUB_WOOD_TEX as WOOD_TEX, CLUB_PANEL_TEX as PANEL_TEX } from "@/lib/clubTextures";
 
 // VENU exterior — direct port of the original's clubGrp (body/trim/sign/door)
 // plus a proper premium-club frontage: the building itself grew sideways and
@@ -63,59 +63,6 @@ const ROPE_TEX = (() => {
   g.fillRect(0, 0, 64, 8);
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = THREE.RepeatWrapping;
-  return tex;
-})();
-
-// Backlit vertical wood-slat soffit — the actual detail the reference photo
-// reads as "premium" (warm timber strips glowing under a black folded roof,
-// not a flat orange panel). Baked once as a canvas strip, tiled along the
-// soffit's width via wrapS.repeat below — same "bake a strip, repeat it"
-// idiom as ROPE_TEX above and City.tsx's own facade textures.
-const WOOD_TEX = (() => {
-  if (typeof document === "undefined") return null;
-  const c = document.createElement("canvas");
-  c.width = 128;
-  c.height = 32;
-  const g = c.getContext("2d")!;
-  for (let x = 0; x < 128; x += 8) {
-    const warm = 0.75 + Math.random() * 0.35;
-    g.fillStyle = `rgba(${Math.round(255 * warm)},${Math.round(140 * warm)},${Math.round(40 * warm)},1)`;
-    g.fillRect(x, 0, 6, 32);
-  }
-  // faint horizontal grain streaks
-  g.globalAlpha = 0.12;
-  for (let i = 0; i < 40; i++) {
-    g.fillStyle = Math.random() < 0.5 ? "#000000" : "#ffffff";
-    g.fillRect(0, Math.random() * 32, 128, 1);
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
-})();
-
-// Brushed-panel noise for the black folded facade — subtle diagonal streaking
-// so the "matte black metal" reads as a material instead of a flat fill.
-const PANEL_TEX = (() => {
-  if (typeof document === "undefined") return null;
-  const c = document.createElement("canvas");
-  c.width = c.height = 128;
-  const g = c.getContext("2d")!;
-  g.fillStyle = "#0b0b0e";
-  g.fillRect(0, 0, 128, 128);
-  g.globalAlpha = 0.06;
-  for (let i = 0; i < 220; i++) {
-    g.strokeStyle = Math.random() < 0.5 ? "#ffffff" : "#000000";
-    g.beginPath();
-    const x = Math.random() * 128;
-    g.moveTo(x, 0);
-    g.lineTo(x + (Math.random() - 0.5) * 10, 128);
-    g.stroke();
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(4, 2);
   return tex;
 })();
 
@@ -237,11 +184,6 @@ export function Club() {
         </mesh>
       ))}
 
-      <Billboard position={[0, 17, FRONT_Z + 3]}>
-        <Text fontSize={3} color="#ff3fd6" outlineWidth={0.1} outlineColor="#05070f" anchorX="center" anchorY="middle">
-          VENU
-        </Text>
-      </Billboard>
       <pointLight color="#ff3fd6" intensity={2} distance={60} position={[-8, 12, FRONT_Z + 6]} />
       <pointLight color="#ff9a3a" intensity={2.5} distance={40} position={[8, 8, FRONT_Z + 5]} />
 

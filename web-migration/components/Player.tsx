@@ -69,8 +69,13 @@ export function Player() {
   const bodyRef = useRef<RapierRigidBody>(null);
   const colliderRef = useRef<RapierCollider>(null);
   const groupRef = useRef<THREE.Group>(null);
-  const legL = useRef<THREE.Mesh>(null);
-  const legR = useRef<THREE.Mesh>(null);
+  const legL = useRef<THREE.Group>(null);
+  const legR = useRef<THREE.Group>(null);
+  // Knee pivots — only used by the seated pose (default rotation 0 everywhere
+  // else), so the walk cycle/ragdoll/mid-air-tuck code below is untouched:
+  // it only ever sets legL/legR (the hip), same as before this split.
+  const kneeL = useRef<THREE.Group>(null);
+  const kneeR = useRef<THREE.Group>(null);
   const armL = useRef<THREE.Mesh>(null);
   const armR = useRef<THREE.Mesh>(null);
   const keys = useKeyboard();
@@ -160,6 +165,57 @@ export function Player() {
     if (!isActive) return;
     const d = Math.min(dt, 0.05);
     const k = keys.current;
+    const hud = useHudStore.getState();
+
+    // Seated in a VIP lounge spot (lib/clubSeats.ts) — freeze movement/
+    // physics entirely and just hold the exact seat pose every frame, same
+    // "snap to a fixed transform" idiom as the ragdoll/teleport paths above,
+    // just with no motion to integrate. E (seatAction) is the only way out.
+    if (hud.seatedAt) {
+      const seat = hud.seatedAt;
+      foot.current.h = seat.ry;
+      camYaw.current = seat.ry;
+      foot.current.speed = 0;
+      foot.current.vy = 0;
+      ragdoll.current = null;
+      const nextPos = { x: seat.x, y: seat.y, z: seat.z };
+      body.setNextKinematicTranslation(nextPos);
+      groupRef.current.rotation.x = 0;
+      groupRef.current.rotation.y = seat.ry;
+      worldState.px = nextPos.x;
+      worldState.pz = nextPos.z;
+      worldState.py = nextPos.y;
+      worldState.heading = seat.ry;
+      // Hip swings the thigh from hanging-down to horizontal-forward; knee
+      // rotates the OPPOSITE way in its own (already-rotated) local frame,
+      // which cancels the hip's rotation and brings the shin back to
+      // hanging straight down from the knee — the actual L-shape a seated
+      // pose needs, not achievable by rotating one rigid leg box.
+      if (legL.current && legR.current && kneeL.current && kneeR.current && armL.current && armR.current) {
+        legL.current.rotation.set(-Math.PI / 2, 0, 0);
+        legR.current.rotation.set(-Math.PI / 2, 0, 0);
+        kneeL.current.rotation.set(Math.PI / 2, 0, 0);
+        kneeR.current.rotation.set(Math.PI / 2, 0, 0);
+        armL.current.rotation.set(-0.2, 0, 0.12);
+        armR.current.rotation.set(-0.2, 0, -0.12);
+      }
+      // Deliberately NOT applyCameraRig's chase mode here: chase parks the
+      // camera chaseDist (9.5) BEHIND the target along -facing, but VIP
+      // sofas sit close against the lounge's back wall (~3.5 units of
+      // clearance) — that placed the camera outside the wall, looking back
+      // through it at a black backface. A fixed shot from the room side
+      // (along +facing, where the sofa always has open floor) can't ever
+      // clip a wall no seat is placed facing into.
+      const eyeX = seat.x + Math.sin(seat.ry) * 3.2;
+      const eyeY = seat.y + 1.5;
+      const eyeZ = seat.z + Math.cos(seat.ry) * 3.2;
+      const lookY = seat.y + 1.1;
+      camera.position.set(eyeX, eyeY, eyeZ);
+      camera.lookAt(seat.x, lookY, seat.z);
+      camPos.current.set(eyeX, eyeY, eyeZ);
+      camLook.current.set(seat.x, lookY, seat.z);
+      return;
+    }
 
     // ragdoll tick: tumble while airborne, count the lying-flat stun once
     // landed, hand control back when it expires. Runs BEFORE the input read
@@ -313,10 +369,14 @@ export function Player() {
 
     // limb animation — walk cycle, mid-air tuck, or (inClub, standing still) the
     // original's bollywood dance emote
-    const hud = useHudStore.getState();
     const moving = Math.abs(foot.current.speed) > 0.15;
     walkPhase.current += d * (moving ? (sprint ? 13 : 8) : 0);
     const sw = Math.sin(walkPhase.current) * (moving ? clamp(Math.abs(foot.current.speed) / sp, 0, 1) * 0.6 : 0);
+    // Knee only ever bends for the seated pose above; every other state
+    // (walk/ragdoll/dance/idle) drives the hip only, so undo a stale bend
+    // left over from just standing up out of a seat.
+    if (kneeL.current) kneeL.current.rotation.set(0, 0, 0);
+    if (kneeR.current) kneeR.current.rotation.set(0, 0, 0);
     if (legL.current && legR.current && armL.current && armR.current) {
       if (!grounded) {
         legL.current.rotation.set(0.55, 0, 0);
@@ -358,24 +418,57 @@ export function Player() {
     <RigidBody ref={bodyRef} type="kinematicPosition" colliders={false} position={[START.x, 1, START.z]}>
       <CuboidCollider ref={colliderRef} args={[0.3, 0.75, 0.3]} collisionGroups={PLAYER_GROUPS} />
       <group ref={groupRef} position={[0, -0.75, 0]}>
-        <PersonMesh legL={legL} legR={legR} armL={armL} armR={armR} />
+        <PersonMesh legL={legL} legR={legR} kneeL={kneeL} kneeR={kneeR} armL={armL} armR={armR} />
       </group>
     </RigidBody>
   );
 }
 
 // Exact geometry/pivots ported from the original's pMesh construction
-// (jacket/vest/tie suit) — legL/legR/armL/armR are the meshes themselves
-// (not wrapper groups), matching how the original rotates them directly
-// around their own box centers, not a hip/shoulder joint.
+// (jacket/vest/tie suit), EXCEPT the legs: the original rotated one rigid
+// leg box around its own centre, fine for a walk cycle's small swing but
+// unusable for a ~90° seated bend (the box tips through the pelvis instead
+// of folding at a joint). legL/legR are now hip PIVOT GROUPS (thigh
+// hanging from HIP_Y, the leg's old top edge) with a child knee group
+// (kneeL/kneeR) carrying the shin + shoe — walking still only ever
+// rotates the hip group, so it looks identical to before at small angles;
+// only the seated pose (Player's useFrame) drives the knee.
+const HIP_Y = 0.59; // old leg box's top edge (0.34 centre + 0.25 half-height) — where it met the pelvis
+const SEG_LEN = 0.25; // half the old single box's 0.5 length, split evenly thigh/shin
+
+function Leg({ x, legRef, kneeRef, trouser, shoe }: { x: number; legRef: React.RefObject<THREE.Group | null>; kneeRef: React.RefObject<THREE.Group | null>; trouser: React.ReactNode; shoe: React.ReactNode }) {
+  return (
+    <group ref={legRef} position={[x, HIP_Y, 0]}>
+      <mesh position={[0, -SEG_LEN / 2, 0]} castShadow>
+        <boxGeometry args={[0.17, SEG_LEN, 0.17]} />
+        {trouser}
+      </mesh>
+      <group ref={kneeRef} position={[0, -SEG_LEN, 0]}>
+        <mesh position={[0, -SEG_LEN / 2, 0]} castShadow>
+          <boxGeometry args={[0.17, SEG_LEN, 0.17]} />
+          {trouser}
+        </mesh>
+        <mesh position={[0, -SEG_LEN - 0.045, 0.04]} castShadow>
+          <boxGeometry args={[0.17, 0.09, 0.3]} />
+          {shoe}
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 function PersonMesh({
   legL,
   legR,
+  kneeL,
+  kneeR,
   armL,
   armR,
 }: {
-  legL: React.RefObject<THREE.Mesh | null>;
-  legR: React.RefObject<THREE.Mesh | null>;
+  legL: React.RefObject<THREE.Group | null>;
+  legR: React.RefObject<THREE.Group | null>;
+  kneeL: React.RefObject<THREE.Group | null>;
+  kneeR: React.RefObject<THREE.Group | null>;
   armL: React.RefObject<THREE.Mesh | null>;
   armR: React.RefObject<THREE.Mesh | null>;
 }) {
@@ -388,22 +481,8 @@ function PersonMesh({
   const shoe = <meshStandardMaterial color="#0a0a0c" roughness={0.25} metalness={0.4} />;
   return (
     <group>
-      <mesh position={[-0.11, 0.045, 0.04]} castShadow>
-        <boxGeometry args={[0.17, 0.09, 0.3]} />
-        {shoe}
-      </mesh>
-      <mesh position={[0.11, 0.045, 0.04]} castShadow>
-        <boxGeometry args={[0.17, 0.09, 0.3]} />
-        {shoe}
-      </mesh>
-      <mesh ref={legL} position={[-0.11, 0.34, 0]} castShadow>
-        <boxGeometry args={[0.17, 0.5, 0.17]} />
-        {trouser}
-      </mesh>
-      <mesh ref={legR} position={[0.11, 0.34, 0]} castShadow>
-        <boxGeometry args={[0.17, 0.5, 0.17]} />
-        {trouser}
-      </mesh>
+      <Leg x={-0.11} legRef={legL} kneeRef={kneeL} trouser={trouser} shoe={shoe} />
+      <Leg x={0.11} legRef={legR} kneeRef={kneeR} trouser={trouser} shoe={shoe} />
       <mesh position={[0, 0.92, 0]} castShadow>
         <boxGeometry args={[0.48, 0.6, 0.28]} />
         {jacket}

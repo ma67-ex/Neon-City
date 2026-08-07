@@ -89,3 +89,108 @@ export const POSTER_SILHOUETTE = tex(128, 192, (g) => {
 });
 
 export const POSTERS = [POSTER_STARBURST, POSTER_EQUALIZER, POSTER_SILHOUETTE];
+
+// Shared with the exterior (components/Club.tsx) so the interior's walls
+// read as the same premium black-panel/warm-wood material instead of
+// re-baking a second, subtly different copy — moved here (2026-08-05) so
+// ClubInterior.tsx can reuse them for wall-parity with the Milestone-22
+// exterior redesign that landed a day after the interior's own last pass.
+function tex2(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void, wrapT = true) {
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  draw(c.getContext("2d")!);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  if (wrapT) t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+export const CLUB_WOOD_TEX = tex2(128, 32, (g) => {
+  for (let x = 0; x < 128; x += 8) {
+    const warm = 0.75 + Math.random() * 0.35;
+    g.fillStyle = `rgba(${Math.round(255 * warm)},${Math.round(140 * warm)},${Math.round(40 * warm)},1)`;
+    g.fillRect(x, 0, 6, 32);
+  }
+  g.globalAlpha = 0.12;
+  for (let i = 0; i < 40; i++) {
+    g.fillStyle = Math.random() < 0.5 ? "#000000" : "#ffffff";
+    g.fillRect(0, Math.random() * 32, 128, 1);
+  }
+});
+
+export const CLUB_PANEL_TEX = tex2(128, 128, (g) => {
+  g.fillStyle = "#0b0b0e";
+  g.fillRect(0, 0, 128, 128);
+  g.globalAlpha = 0.06;
+  for (let i = 0; i < 220; i++) {
+    g.strokeStyle = Math.random() < 0.5 ? "#ffffff" : "#000000";
+    g.beginPath();
+    const x = Math.random() * 128;
+    g.moveTo(x, 0);
+    g.lineTo(x + (Math.random() - 0.5) * 10, 128);
+    g.stroke();
+  }
+});
+CLUB_PANEL_TEX.repeat.set(4, 2);
+
+// Folded velvet-curtain stripe — alternating dark/lit red ridges, tiled
+// along a curtain panel's width so it reads as fabric folds instead of a
+// flat red fill. Same "bake a strip, tile it" idiom as CLUB_WOOD_TEX.
+export const CLUB_CURTAIN_TEX = tex2(64, 32, (g) => {
+  for (let x = 0; x < 64; x += 4) {
+    const fold = 0.55 + 0.45 * Math.abs(Math.sin((x / 64) * Math.PI * 10));
+    g.fillStyle = `rgba(${Math.round(150 * fold)},${Math.round(8 * fold)},${Math.round(20 * fold)},1)`;
+    g.fillRect(x, 0, 4, 32);
+  }
+});
+CLUB_CURTAIN_TEX.repeat.set(3, 1);
+
+// Tufted chesterfield-leather diamond pattern — dark navy leather with a
+// grid of stitched diamond seams and a soft highlight per button, tiled
+// across a sofa's cushion faces.
+export const CLUB_CHESTERFIELD_TEX = tex2(128, 128, (g) => {
+  g.fillStyle = "#0d1220";
+  g.fillRect(0, 0, 128, 128);
+  const cell = 32;
+  g.strokeStyle = "rgba(0,0,0,0.55)";
+  g.lineWidth = 2;
+  for (let y = 0; y <= 128; y += cell) {
+    for (let x = -cell; x <= 128; x += cell) {
+      g.beginPath();
+      g.moveTo(x, y - cell / 2);
+      g.lineTo(x + cell / 2, y);
+      g.lineTo(x, y + cell / 2);
+      g.lineTo(x - cell / 2, y);
+      g.closePath();
+      g.stroke();
+      g.fillStyle = "rgba(255,255,255,0.05)";
+      g.beginPath();
+      g.arc(x, y, 3, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+});
+CLUB_CHESTERFIELD_TEX.repeat.set(2, 1);
+
+// Polished marble slab — soft grey base with faint diagonal veining, for the
+// VIP lounge's round coffee tables.
+export const CLUB_MARBLE_TEX = tex2(
+  128,
+  128,
+  (g) => {
+    g.fillStyle = "#c8c6c2";
+    g.fillRect(0, 0, 128, 128);
+    g.globalAlpha = 0.3;
+    for (let i = 0; i < 14; i++) {
+      g.strokeStyle = Math.random() < 0.5 ? "#8a8884" : "#e8e6e0";
+      g.lineWidth = 1 + Math.random();
+      g.beginPath();
+      const x0 = Math.random() * 128;
+      g.moveTo(x0, 0);
+      g.bezierCurveTo(x0 + 30, 40, x0 - 30, 90, x0 + (Math.random() - 0.5) * 40, 128);
+      g.stroke();
+    }
+  },
+  false
+);

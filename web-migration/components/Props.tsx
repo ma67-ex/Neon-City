@@ -14,10 +14,10 @@ import { debrisQueue, type DebrisBurst } from "@/lib/debris";
 // controller, so it needs no special wiring — it's just how a kinematic
 // body colliding with a dynamic one behaves). Car/Bike/PoliceCar's
 // `computeColliderMovement` calls pass QueryFilterFlags.EXCLUDE_DYNAMIC so
-// the obstacle SWEEP ignores these (driving doesn't slide/stop on a cone),
+// the obstacle SWEEP ignores these (driving doesn't slide/stop on a crate),
 // while that solver push still happens every physics step regardless.
 
-type PropKind = "cone" | "barrel" | "crate" | "barrier";
+type PropKind = "barrel" | "crate" | "barrier";
 interface PropSpec {
   x: number;
   z: number;
@@ -27,55 +27,36 @@ interface PropSpec {
 // A handful of fixed spawn points in the spawn block (City.tsx's (0,0) chunk —
 // exempt from random buildings, so guaranteed clear ground) rather than a
 // per-chunk procedural system: no mount/unmount churn as the player roams, and
-// a knocked-over cone stays knocked over instead of resetting when you loop
+// a knocked-over crate stays knocked over instead of resetting when you loop
 // back through. The one thing a fixed top-level pool needs that a per-chunk
 // one wouldn't: chunk (0,0)'s ground collider unmounts once the player drives
 // ~200+ units away (City.tsx's VIEW=2 streaming radius), so a resting prop
 // would otherwise fall forever — handled below by the y<-2 recycle.
 const PROP_SPECS: PropSpec[] = [
-  { x: 42, z: -20, kind: "cone" },
-  { x: 42, z: -8, kind: "cone" },
-  { x: 42, z: 8, kind: "cone" },
-  { x: -42, z: 20, kind: "cone" },
-  { x: -42, z: 32, kind: "cone" },
   { x: 20, z: 42, kind: "barrel" },
   { x: 8, z: 42, kind: "barrel" },
   { x: -20, z: -42, kind: "barrel" },
   { x: 15, z: -15, kind: "crate" },
   { x: -15, z: 15, kind: "crate" },
   { x: 25, z: 5, kind: "crate" },
-  { x: -8, z: -25, kind: "cone" },
 
   // two construction zones along the main lanes (Traffic.tsx's LANES) — off
   // the fixed patrol centreline, on the shoulder, so they read as roadwork
   // the player has to notice/steer around rather than blocking the AI's path
   { x: 46, z: 28, kind: "barrier" },
-  { x: 44, z: 24, kind: "cone" },
-  { x: 44, z: 32, kind: "cone" },
   { x: 42, z: 28, kind: "crate" },
   { x: -46, z: -38, kind: "barrier" },
-  { x: -44, z: -34, kind: "cone" },
-  { x: -44, z: -42, kind: "cone" },
   { x: -42, z: -38, kind: "barrel" },
 ];
 
 // tuned so a tap sends it rolling, not jittering or flying off-map — mass is
 // explicit (not density) so these numbers stay meaningful regardless of shape
 const PROP_TUNING: Record<PropKind, { mass: number; restitution: number; friction: number }> = {
-  cone: { mass: 2, restitution: 0.15, friction: 0.8 },
   barrel: { mass: 12, restitution: 0.2, friction: 0.6 },
   crate: { mass: 8, restitution: 0.1, friction: 0.7 },
   barrier: { mass: 6, restitution: 0.1, friction: 0.8 },
 };
 
-function ConeMesh() {
-  return (
-    <mesh castShadow receiveShadow>
-      <coneGeometry args={[0.22, 0.6, 10]} />
-      <meshStandardMaterial color="#e8631c" roughness={0.6} />
-    </mesh>
-  );
-}
 function BarrelMesh() {
   return (
     <mesh castShadow receiveShadow>
@@ -119,7 +100,7 @@ function Prop({ spec }: { spec: PropSpec }) {
     () =>
       new THREE.Vector3(
         spec.x,
-        spec.kind === "barrel" ? 0.45 : spec.kind === "crate" ? 0.25 : spec.kind === "barrier" ? 0.25 : 0.3,
+        spec.kind === "barrel" ? 0.45 : 0.25,
         spec.z,
       ),
     [spec],
@@ -139,7 +120,7 @@ function Prop({ spec }: { spec: PropSpec }) {
     }
   });
 
-  const colliders = spec.kind === "crate" || spec.kind === "barrier" ? "cuboid" : "hull";
+  const colliders = spec.kind === "barrel" ? "hull" : "cuboid";
 
   return (
     <RigidBody
@@ -151,7 +132,6 @@ function Prop({ spec }: { spec: PropSpec }) {
       restitution={tuning.restitution}
       friction={tuning.friction}
     >
-      {spec.kind === "cone" && <ConeMesh />}
       {spec.kind === "barrel" && <BarrelMesh />}
       {spec.kind === "crate" && <CrateMesh />}
       {spec.kind === "barrier" && <BarrierMesh />}

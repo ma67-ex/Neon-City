@@ -82,6 +82,10 @@ interface HudState {
   waypointDeg: number;
   mapOpen: boolean;
   inClub: boolean;
+  // VIP-lounge seat the player is currently sat in (lib/clubSeats.ts), or
+  // null while standing/driving. Player.tsx freezes movement and snaps to
+  // this spot every frame while set; E toggles it via seatAction().
+  seatedAt: { x: number; y: number; z: number; ry: number } | null;
   // the #controls key-hint panel — H toggles it, matching the original's
   // index.html ~6490 (`p.style.display = p.style.display==='none'?'':'none'`)
   controlsVisible: boolean;
@@ -106,6 +110,7 @@ interface HudState {
   setNavTarget: (l: Landmark) => void;
   setMapOpen: (open: boolean) => void;
   setInClub: (v: boolean) => void;
+  setSeatedAt: (v: { x: number; y: number; z: number; ry: number } | null) => void;
   toggleControlsVisible: () => void;
   setStolenCar: (v: { color: string; style: CarStyle } | null) => void;
   setLookSensitivity: (v: number) => void;
@@ -136,6 +141,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   waypointDeg: 0,
   mapOpen: false,
   inClub: false,
+  seatedAt: null,
   controlsVisible: true,
   stolenCar: null,
   lookSensitivity: 1,
@@ -167,6 +173,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   setNavTarget: (l) => set({ navTarget: l, mapOpen: false }),
   setMapOpen: (open) => set({ mapOpen: open }),
   setInClub: (v) => set({ inClub: v }),
+  setSeatedAt: (v) => set({ seatedAt: v }),
   toggleControlsVisible: () => set((s) => ({ controlsVisible: !s.controlsVisible })),
   setStolenCar: (v) => set({ stolenCar: v }),
   setLookSensitivity: (v) =>

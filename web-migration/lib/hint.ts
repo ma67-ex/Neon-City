@@ -4,6 +4,7 @@ import { useHudStore, VEHICLE_NAMES, type VehicleKind } from "@/lib/hudStore";
 import { clubHintText } from "@/lib/club";
 import { trafficPositions } from "@/components/Traffic";
 import { mountRadius } from "@/lib/mountRadius";
+import { nearestSeat } from "@/lib/clubSeats";
 
 const STEAL_RADIUS2 = 5 * 5; // slightly wider than the 4.5 mount action radius
 
@@ -16,6 +17,11 @@ export function computeHint(): string | null {
 
   const hud = useHudStore.getState();
   if (hud.active !== "foot") return null;
+  if (hud.seatedAt) return "Press E to stand up";
+  if (hud.inClub) {
+    const seat = nearestSeat();
+    if (seat) return "Press E to sit";
+  }
 
   let bestName: string | null = null;
   let bestD2 = Infinity;
