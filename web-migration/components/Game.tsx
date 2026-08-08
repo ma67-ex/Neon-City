@@ -153,7 +153,7 @@ export default function Game() {
 
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      <Canvas shadows="soft" dpr={[1, 2]} camera={{ fov: 65, near: 0.1, far: 1000 }} gl={{ toneMappingExposure: 1.5 }}>
+      <Canvas shadows="soft" dpr={PF_DPR} camera={{ fov: 65, near: 0.1, far: 1000 }} gl={{ toneMappingExposure: 1.5 }}>
         <Suspense fallback={null}>
           <SkyCycle />
           {/* IBL only (background:false leaves SkyCycle's own scene.background/
