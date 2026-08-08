@@ -115,7 +115,7 @@ export default function Game() {
       const hud = useHudStore.getState();
       if (e.code === "KeyE") {
         // door beats sitting/standing beats boat-swap beats mount beats stealing an NPC
-        if (!clubDoorAction() && !seatAction() && !boatSwapAction() && !toggleVehicleFoot()) stealTrafficAction();
+        if (!interiorDoorAction() && !seatAction() && !boatSwapAction() && !toggleVehicleFoot()) stealTrafficAction();
       } else if (e.code === "KeyB") {
         hud.toggleActive();
         hud.showMsg("SWITCHED TO: " + hud.vehicleName());
