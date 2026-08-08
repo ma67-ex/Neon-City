@@ -17,6 +17,7 @@ import { teleportRequest } from "@/lib/clubTeleport";
 import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
 import { clampFromWater, groundYAt } from "@/lib/marina";
+import { POLICE_SWEEP_GROUPS } from "@/lib/collisionGroups";
 import { PoliceJeepMesh } from "@/components/ParkedPoliceJeep";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
@@ -101,7 +102,13 @@ export function PoliceJeep() {
     );
 
     fallSpeed.current += GRAVITY_PULL * d;
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC);
+    // filterGroups=POLICE_SWEEP_GROUPS — this call had no 4th argument at all,
+    // so like PoliceCar.tsx before its own fix, a parked jeep's zero-input
+    // sweep treated an on-foot player who walked into it (this is the airport
+    // gate guard's post, right where players walk through) as an obstacle and
+    // depenetrated against them every frame — the visible unprompted jerk.
+    // See lib/collisionGroups.ts.
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, POLICE_SWEEP_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();

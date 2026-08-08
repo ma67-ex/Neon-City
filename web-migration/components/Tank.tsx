@@ -18,6 +18,7 @@ import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
 import { clampFromWater } from "@/lib/marina";
 import { PLATFORM_Y } from "@/lib/militaryBase";
+import { POLICE_SWEEP_GROUPS } from "@/lib/collisionGroups";
 import { requestFire } from "@/lib/tankShell";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
@@ -183,7 +184,11 @@ export function Tank() {
     );
 
     fallSpeed.current += GRAVITY_PULL * d;
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC);
+    // filterGroups=POLICE_SWEEP_GROUPS — same fix as PoliceCar.tsx/PoliceJeep.tsx:
+    // this call had no 4th argument, so a parked tank's zero-input sweep
+    // treated an on-foot player who walked into it as an obstacle and
+    // depenetrated against them every frame. See lib/collisionGroups.ts.
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, POLICE_SWEEP_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
