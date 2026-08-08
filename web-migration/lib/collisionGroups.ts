@@ -41,3 +41,20 @@ export const WATER_BOUNDARY = interactionGroups([3], [2]);
 // a collider whose membership is bit 0 alone.
 const ALL_EXCEPT_ON_FOOT_PLAYER = Array.from({ length: 15 }, (_, i) => i + 1);
 export const VEHICLE_SWEEP_GROUPS = interactionGroups([0, 2], ALL_EXCEPT_ON_FOOT_PLAYER);
+// PoliceCar.tsx's sweep uses this instead of VEHICLE_SWEEP_GROUPS. Same
+// ALL_EXCEPT_ON_FOOT_PLAYER filter, so it fixes the identical parked-vehicle
+// flinch described above (the cruiser's zero-input sweep no longer treats a
+// player who walks into it as an obstacle to shove itself clear of). The
+// difference is membership: bit 1 is KEPT, so the cruiser still satisfies
+// VEHICLE_ONLY's filter=[1] and remains blocked by the airport gate gap
+// (Airport.tsx) and the VEHICLE_ONLY curbs — exactly the behaviour it had
+// before the flinch fix, and what the comment at the top of this file
+// describes when it names PoliceCar as something VEHICLE_ONLY blocks.
+// Handing the cruiser VEHICLE_SWEEP_GROUPS instead would silently ALSO give
+// it Car/Bike's "drive through the gate" passthrough, because a character-
+// controller sweep is governed by these filterGroups and not by the
+// collider's own collisionGroups tag (see Player.tsx's computeColliderMovement
+// comment). That passthrough is a separate, deliberate design decision — if
+// the cop car should behave like Car/Bike, swap this for VEHICLE_SWEEP_GROUPS
+// there and tag its CuboidCollider with VEHICLE_BODY_GROUPS.
+export const POLICE_SWEEP_GROUPS = interactionGroups([0, 1, 2], ALL_EXCEPT_ON_FOOT_PLAYER);
