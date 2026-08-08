@@ -24,11 +24,6 @@ const NIGHT = new THREE.Color(0x05070f);
 const SUN_NIGHT = new THREE.Color(0x7d8fc8); // original's moonlight tint
 const SUN_DAY = new THREE.Color().setHSL(0.1, 0.5, 0.75); // original's warm daylight tint
 
-// PERFTEMP-START (temporary profiling instrumentation — delete before commit)
-const __pf = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-const PF_SHADOW = __pf.get("shadow") ? Number(__pf.get("shadow")) : 2048; // 0 = no shadow casting
-// PERFTEMP-END
-
 export function SkyCycle() {
   const { scene, gl } = useThree();
   const sunRef = useRef<THREE.DirectionalLight>(null);
