@@ -2271,3 +2271,52 @@ honesty flag Milestone 25 itself used for its own unverified chain.
 (`militaryHeli`/`jet1`/`jet2`/`jet3` spawns), `lib/flightPhysics.ts`
 (`FIGHTER_JET_HANDLING`), `lib/militaryBase.ts` (`JET_SCALE` moved in from
 the component file).
+
+## Akul's task list (2026-08-08) — from Abdullah voice note, all [Assigned: Akul]
+
+Not started. Planning only — Akul asked to hold at plan stage, no code yet.
+
+- [ ] 22. **[Assigned: Akul]** **Vehicle physics glitch, jerky motion.** Some
+      vehicle's physics is glitching/stuttering — smooth it out and fix the
+      frame rate around it. **Priority: first, per Akul.**
+
+- [ ] 23. **[Assigned: Akul]** **10-15 enterable buildings**, including a
+      hospital, same interaction pattern as the club/venue you can already
+      walk into (walk up, go inside, real interior).
+
+- [ ] 24. **[Assigned: Akul]** **Street redesign** — current streets need a
+      visual pass, better-looking road design.
+
+- [ ] 25. **[Assigned: Akul]** **Minimap fix** — buildings should
+      rotate/update on the minimap as the player moves (parity with player
+      rotation), and the player's own position marker/cursor needs fixing.
+
+- [ ] 26. **[Assigned: Akul]** **Gun/arms store** — a location where the
+      player can pick up weapons and fire them, with explosion and fire
+      effects (ties into the existing tank/explosion system).
+
+- [ ] 27. **[Assigned: Akul]** **Realistic nitro + drift smoke** — smoke
+      effects on nitro use and on drift/donuts should look more realistic.
+
+- [ ] 28. **[Assigned: Akul]** **GTA-style in-game phone option** — an
+      in-game phone menu/mechanic, same idea as GTA's phone.
+
+- [ ] 29. **[Assigned: Akul]** **Commercial vehicle bike model fix** — the
+      bike's shape/tire looks off ("open"), needs a visual fix.
+
+- [ ] 30. **[Assigned: Akul]** **Grass/sidewalk fix** — sidewalk lines
+      missing in grass areas, and tree placement in grass zones needs
+      adjusting.
+
+- [ ] 31. **[Assigned: Akul]** **Speedometer fix** — currently inaccurate.
+
+- [ ] 32. **[Assigned: Akul]** **Cockpit / first-person camera fix** —
+      broken across car, truck, and helicopter.
+
+- [ ] 33. **[Assigned: Akul]** **Parachute mechanic** — jumping from a
+      plane/helicopter at altitude should trigger a parachute, with proper
+      model/graphics.
+
+Source: voice note from Abdullah, transcribed via Wispr Flow (Hindi/Urdu/
+Punjabi mix), confirmed item-by-item with Akul 2026-08-08. Model to use for
+the physics fix: **Fable 5** (confirmed by Akul).
