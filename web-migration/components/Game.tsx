@@ -39,7 +39,7 @@ import { HUD } from "@/components/HUD";
 import { useHudStore, LIGHT_MODES } from "@/lib/hudStore";
 import { initAudio, toggleMute, setMuted } from "@/lib/audio";
 import { loadSave, saveGame } from "@/lib/saveGame";
-import { clubDoorAction } from "@/lib/club";
+import { interiorDoorAction } from "@/lib/interiors";
 import { toggleVehicleFoot } from "@/lib/player";
 import { boatSwapAction } from "@/lib/boatSwap";
 import { seatAction } from "@/lib/clubSeats";
