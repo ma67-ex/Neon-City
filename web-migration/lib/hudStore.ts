@@ -147,6 +147,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   waypointDeg: 0,
   mapOpen: false,
   inClub: false,
+  activeBuildingId: null,
   seatedAt: null,
   controlsVisible: true,
   stolenCar: null,
