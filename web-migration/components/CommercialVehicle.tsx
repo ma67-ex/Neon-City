@@ -19,6 +19,7 @@ import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
 import { RIDE_HEIGHT } from "@/components/SupercarBody";
 import { CommercialBody, type CommercialKind } from "@/components/CommercialBody";
+import { CommercialCockpit } from "@/components/CommercialCockpit";
 import { clampFromWater, groundYAt } from "@/lib/marina";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
@@ -219,6 +220,7 @@ export function CommercialVehicle({ kind, color }: { kind: CommercialKind; color
         collisionGroups={VEHICLE_BODY_GROUPS}
       />
       <CommercialBody kind={kind} color={color} lightRefs={lightRefs} />
+      <CommercialCockpit kind={kind} eyeX={spec.cockpitForward} eyeY={spec.cockpitEyeHeight} />
     </RigidBody>
   );
 }

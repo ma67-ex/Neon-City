@@ -233,11 +233,20 @@ export function HeliCockpit({
   const vsiPivot = useRef<THREE.Group>(null);
   const rpmPivot = useRef<THREE.Group>(null);
   const ahDisc = useRef<THREE.Group>(null);
+  const rootRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
     const f = fs.current;
     const p = pos.current;
-    const active = useHudStore.getState().active === kind;
+    const s = useHudStore.getState();
+    const active = s.active === kind;
+    // this file's own header comment claims "visible from camMode===1" but
+    // nothing ever enforced it — Helicopter.tsx mounts this unconditionally,
+    // so the whole dashboard/cyclic/gauge rig rendered in every camera mode,
+    // including CHASE (visible sitting inside the cabin from outside). Same
+    // gate CarInterior.tsx uses for the car's own cockpit.
+    if (rootRef.current) rootRef.current.visible = active && s.camMode === 1;
+    if (!active) return;
 
     // cyclic: tilts with the aircraft's live pitch/roll (fs.pitch/fs.roll,
     // stepped each frame by lib/flightPhysics.ts's stepFlight) — scaled up a
@@ -268,7 +277,7 @@ export function HeliCockpit({
   });
 
   return (
-    <group>
+    <group ref={rootRef}>
       {/* under the canopy roof/frame, out of direct sun — without a local
           fill the panel reads as a black silhouette against the sky. Same
           fix as components/CarInterior.tsx's dome light. */}
