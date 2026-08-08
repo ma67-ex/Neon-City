@@ -66,6 +66,13 @@ import { MilitaryBase, OLIVE_HELI_MAT } from "@/components/MilitaryBase";
 import { Tank } from "@/components/Tank";
 import { TankCombat } from "@/components/TankCombat";
 
+// PERFTEMP-START (temporary profiling instrumentation — delete before commit)
+const __pf = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+const PF_DPR: [number, number] = [1, __pf.get("dpr") ? Number(__pf.get("dpr")) : 2];
+const PF_AO = __pf.get("ao") ?? "high"; // "off" | "low" | "medium" | "high"
+const PF_ENV = __pf.get("env") !== "off";
+// PERFTEMP-END
+
 const CYCLABLE = new Set(["car", "bike", "boat"]);
 
 // original's exact per-frame rescale (updateDayNight ~line 7016): dim by day
