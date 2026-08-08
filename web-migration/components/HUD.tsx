@@ -5,6 +5,7 @@ import { useAuthStore } from "@/lib/authStore";
 import { saveGame } from "@/lib/saveGame";
 import { Minimap } from "@/components/Minimap";
 import { BigMap } from "@/components/BigMap";
+import { Phone } from "@/components/Phone";
 
 // Speedo/NitroBar/Waypoint each own their own store subscription and are
 // split out from HUD's own render — speedKmh/nitroFuel/waypointDist all
@@ -172,6 +173,8 @@ export function HUD() {
         <b>L</b> headlights auto/on/off
         <br />
         <b>M</b> mute engine
+        <br />
+        <b>P</b> phone
       </div>
 
       <div id="vig" />
@@ -180,6 +183,7 @@ export function HUD() {
       </div>
       <div id="maphint">click map for directions</div>
       <BigMap />
+      <Phone />
     </>
   );
 }

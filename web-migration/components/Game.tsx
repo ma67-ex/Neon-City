@@ -131,10 +131,13 @@ export default function Game() {
         hud.showMsg("WEATHER: " + cycleWeather().toUpperCase());
       } else if (e.code === "KeyG") {
         hud.setMapOpen(!hud.mapOpen);
+      } else if (e.code === "KeyP") {
+        hud.setPhoneOpen(!hud.phoneOpen);
       } else if (e.code === "KeyH") {
         hud.toggleControlsVisible();
       } else if (e.code === "Escape") {
         hud.setMapOpen(false);
+        hud.setPhoneOpen(false);
       }
     };
     const onClick = () => initAudio();

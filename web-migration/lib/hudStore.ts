@@ -81,6 +81,7 @@ interface HudState {
   waypointDist: number;
   waypointDeg: number;
   mapOpen: boolean;
+  phoneOpen: boolean;
   inClub: boolean;
   // which registered building (lib/buildings.ts) the player is currently
   // inside, or null while outdoors/inClub is false — selects which
@@ -114,6 +115,7 @@ interface HudState {
   setWaypoint: (dist: number, deg: number) => void;
   setNavTarget: (l: Landmark) => void;
   setMapOpen: (open: boolean) => void;
+  setPhoneOpen: (open: boolean) => void;
   setInClub: (v: boolean) => void;
   setActiveBuildingId: (id: string | null) => void;
   setSeatedAt: (v: { x: number; y: number; z: number; ry: number } | null) => void;
@@ -146,6 +148,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   waypointDist: 0,
   waypointDeg: 0,
   mapOpen: false,
+  phoneOpen: false,
   inClub: false,
   activeBuildingId: null,
   seatedAt: null,
@@ -179,6 +182,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   setWaypoint: (dist, deg) => set({ waypointDist: dist, waypointDeg: deg }),
   setNavTarget: (l) => set({ navTarget: l, mapOpen: false }),
   setMapOpen: (open) => set({ mapOpen: open }),
+  setPhoneOpen: (open) => set({ phoneOpen: open }),
   setInClub: (v) => set({ inClub: v }),
   setActiveBuildingId: (id) => set({ activeBuildingId: id }),
   setSeatedAt: (v) => set({ seatedAt: v }),

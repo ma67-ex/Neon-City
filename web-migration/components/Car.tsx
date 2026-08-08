@@ -14,6 +14,7 @@ import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { teleportRequest } from "@/lib/clubTeleport";
+import { carSummon } from "@/lib/vehicleSummon";
 import { requestPlayerTeleport } from "@/lib/playerTeleport";
 import { carDestroyRequest } from "@/lib/vehicleDestroy";
 import { checkCrashDebris } from "@/lib/debris";
@@ -80,6 +81,23 @@ export function Car() {
     const d = Math.min(dt, 0.05); // clamp like the original tick() to avoid a tab-switch spike
 
     const isActive = useHudStore.getState().active === "car";
+
+    // "call mechanic" phone summon (components/Phone.tsx, lib/vehicleSummon.ts)
+    // — unconditional, unlike the club-door teleportRequest below: the whole
+    // point is bringing the car to a player who is on foot, i.e. NOT driving
+    // it, so gating this on isActive would make it a no-op every time.
+    if (carSummon.pending) {
+      carSummon.pending = false;
+      destroyedUntil.current = 0;
+      body.setTranslation({ x: carSummon.x, y: RIDE_HEIGHT, z: carSummon.z }, true);
+      car.current.h = carSummon.h;
+      car.current.speed = 0;
+      car.current.vLat = 0;
+      vehicleState.car.x = carSummon.x;
+      vehicleState.car.z = carSummon.z;
+      vehicleState.car.h = carSummon.h;
+      return;
+    }
 
     // club door teleport (enter/exit VENU) — see lib/club.ts
     if (isActive && teleportRequest.pending) {
