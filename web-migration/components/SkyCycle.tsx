@@ -104,9 +104,9 @@ export function SkyCycle() {
       <directionalLight
         ref={sunRef}
         position={[60, 80, 30]}
-        castShadow
+        castShadow={PF_SHADOW > 0}
         intensity={0.15}
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[PF_SHADOW || 1024, PF_SHADOW || 1024]}
         shadow-bias={-0.0015}
         shadow-camera-near={10}
         shadow-camera-far={220}
