@@ -31,6 +31,7 @@ import { Pedestrians } from "@/components/Pedestrians";
 import { Player } from "@/components/Player";
 import { Club } from "@/components/Club";
 import { ClubInterior } from "@/components/ClubInterior";
+import { EnterableBuildings } from "@/components/EnterableBuildings";
 import { AudioEngine } from "@/components/AudioEngine";
 import { NitroFX } from "@/components/NitroFX";
 import { Debris } from "@/components/Debris";
@@ -226,6 +227,7 @@ export default function Game() {
             <Player />
             <Club />
             <ClubInterior />
+            <EnterableBuildings />
           </Physics>
           {/* threshold matches the original's UnrealBloomPass threshold (.82) — only
               true emissive neon blooms, not the lit ground/facades. Strength is NOT
