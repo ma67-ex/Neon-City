@@ -129,7 +129,11 @@ export function Boat({
       speedMs: Math.abs(boat.current.speed),
     });
 
-    useHudStore.getState().setHud(Math.round(Math.abs(boat.current.speed) * 3.6), true);
+    // true ground speed including lateral slide — a hull carries far more
+    // sideways momentum through a turn than a tyred vehicle (BOAT_HANDLING's
+    // low grip, see carPhysics.ts), so this under-read the worst of any
+    // vehicle. See Car.tsx's same fix.
+    useHudStore.getState().setHud(Math.round(Math.hypot(boat.current.speed, boat.current.vLat) * 3.6), true);
   });
 
   return (

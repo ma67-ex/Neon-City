@@ -180,7 +180,8 @@ export function PoliceCar({ kind = "policeCar" }: { kind?: VehicleKind } = {}) {
       speedMs: Math.abs(car.current.speed),
     });
 
-    useHudStore.getState().setHud(Math.round(Math.abs(car.current.speed) * 3.6), grounded);
+    // true ground speed including lateral slide — see Car.tsx's same fix
+    useHudStore.getState().setHud(Math.round(Math.hypot(car.current.speed, car.current.vLat) * 3.6), grounded);
   });
 
   return (

@@ -193,7 +193,8 @@ export function CommercialVehicle({ kind, color }: { kind: CommercialKind; color
       chaseHeight: spec.chaseHeight,
     });
 
-    useHudStore.getState().setHud(Math.round(Math.abs(car.current.speed) * 3.6), grounded);
+    // true ground speed including lateral slide — see Car.tsx's same fix
+    useHudStore.getState().setHud(Math.round(Math.hypot(car.current.speed, car.current.vLat) * 3.6), grounded);
   });
 
   const [bw, bh, bl] = spec.box;

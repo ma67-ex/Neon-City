@@ -267,7 +267,10 @@ export function Car() {
       speedMs: Math.abs(car.current.speed),
     });
 
-    useHudStore.getState().setHud(Math.round(Math.abs(car.current.speed) * 3.6), grounded);
+    // true ground speed, not just the forward component — Math.abs(speed)
+    // alone under-reads during a drift/powerslide, where a real chunk of the
+    // car's motion is sideways (vLat) rather than forward. See carPhysics.ts.
+    useHudStore.getState().setHud(Math.round(Math.hypot(car.current.speed, car.current.vLat) * 3.6), grounded);
   });
 
   return (

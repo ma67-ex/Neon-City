@@ -213,7 +213,8 @@ export function Bike() {
       speedMs: Math.abs(bike.current.speed),
     });
 
-    useHudStore.getState().setHud(Math.round(Math.abs(bike.current.speed) * 3.6), grounded);
+    // true ground speed including lateral slide — see Car.tsx's same fix
+    useHudStore.getState().setHud(Math.round(Math.hypot(bike.current.speed, bike.current.vLat) * 3.6), grounded);
   });
 
   return (

@@ -252,7 +252,8 @@ export function Tank() {
       chaseHeight: 5.0,
     });
 
-    useHudStore.getState().setHud(Math.round(Math.abs(car.current.speed) * 3.6), grounded);
+    // true ground speed including lateral slide — see Car.tsx's same fix
+    useHudStore.getState().setHud(Math.round(Math.hypot(car.current.speed, car.current.vLat) * 3.6), grounded);
   });
 
   return (
