@@ -2272,72 +2272,12 @@ honesty flag Milestone 25 itself used for its own unverified chain.
 (`FIGHTER_JET_HANDLING`), `lib/militaryBase.ts` (`JET_SCALE` moved in from
 the component file).
 
-## Akul's task list (2026-08-08) — from Abdullah voice note, all [Assigned: Akul]
+## Akul's task list (2026-08-08) — CLOSED 2026-08-08
 
-Not started. Planning only — Akul asked to hold at plan stage, no code yet.
-
-- [ ] 22. **[Assigned: Akul]** **Vehicle physics glitch, jerky motion.** Some
-      vehicle's physics is glitching/stuttering — smooth it out and fix the
-      frame rate around it. **Priority: first, per Akul.**
-
-- [ ] 23. **[Assigned: Akul]** **10-15 enterable buildings**, including a
-      hospital, same interaction pattern as the club/venue you can already
-      walk into (walk up, go inside, real interior).
-
-- [ ] 24. **[Assigned: Akul]** **Street redesign** — current streets need a
-      visual pass, better-looking road design.
-
-- [ ] 25. **[Assigned: Akul]** **Minimap fix** — buildings should
-      rotate/update on the minimap as the player moves (parity with player
-      rotation), and the player's own position marker/cursor needs fixing.
-
-- [ ] 26. **[Assigned: Akul]** **Gun/arms store** — a location where the
-      player can pick up weapons and fire them, with explosion and fire
-      effects (ties into the existing tank/explosion system).
-
-- [ ] 27. **[Assigned: Akul]** **Realistic nitro + drift smoke** — smoke
-      effects on nitro use and on drift/donuts should look more realistic.
-
-- [ ] 28. **[Assigned: Akul]** **GTA-style in-game phone option** — an
-      in-game phone menu/mechanic, same idea as GTA's phone.
-
-- [ ] 29. **[Assigned: Akul]** **Commercial vehicle bike model fix** — the
-      bike's shape/tire looks off ("open"), needs a visual fix.
-
-- [ ] 30. **[Assigned: Akul]** **Grass/sidewalk fix** — sidewalk lines
-      missing in grass areas, and tree placement in grass zones needs
-      adjusting.
-
-- [ ] 31. **[Assigned: Akul]** **Speedometer fix** — currently inaccurate.
-
-- [ ] 32. **[Assigned: Akul]** **Cockpit / first-person camera fix** —
-      broken across car, truck, and helicopter.
-
-- [ ] 33. **[Assigned: Akul]** **Parachute mechanic** — jumping from a
-      plane/helicopter at altitude should trigger a parachute, with proper
-      model/graphics.
-
-Source: voice note from Abdullah, transcribed via Wispr Flow (Hindi/Urdu/
-Punjabi mix), confirmed item-by-item with Akul 2026-08-08. Model to use for
-the physics fix: **Fable 5** (confirmed by Akul).
-
-**Process notes from the voice note:**
-- **Timeline:** Abdullah's own estimate — thinks all of this ("pathera-thera")
-  is doable in **1-2 days**.
-- **Communication loop, both directions:** tell Abdullah **before pushing**
-  (heads-up/buy-in on what's about to land) and tell him **again after
-  pushing** (confirm it's live). Applies to this whole task batch — not the
-  usual "push straight to origin main, no PR" default from earlier sessions;
-  Abdullah wants to be looped in both sides of the push for this batch.
-- **Building style suggestion (#23):** for each of the 10-15 buildings, pull
-  reference images from Google matching the desired real-world look (e.g.
-  hospital reference photos), then hand those references to the AI tool to
-  replicate the style — same "show it a real photo, it copies the look"
-  approach, not freehand modeling.
-- **Softer physics ask (#22):** framed as "try to make it smooth" rather than
-  a hard spec — no exact frame-rate target given, just get the glitch/stutter
-  gone and motion smooth.
-- Akul's own note: this is a rough Hindi/Urdu/Punjabi voice-note transcript
-  run through Wispr Flow, then interpreted and confirmed bullet-by-bullet
-  with Akul before being written here — treat items above as the confirmed
-  read, not a verbatim quote.
+Items 22-33 below (vehicle physics jerk, enterable buildings, street
+redesign, minimap fix, gun/arms store, nitro+drift smoke, in-game phone,
+bike model fix, grass/sidewalk fix, speedometer fix, cockpit camera fix,
+parachute mechanic) are all done — implemented, typecheck-clean, and pushed
+to `main` (`d347936..8a1d3ea`, 11 commits). Full per-item detail lives in
+those commit messages; see `git log d347936..8a1d3ea` for the complete
+breakdown of what changed and why.
