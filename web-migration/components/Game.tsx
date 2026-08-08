@@ -32,6 +32,7 @@ import { Player } from "@/components/Player";
 import { Club } from "@/components/Club";
 import { ClubInterior } from "@/components/ClubInterior";
 import { EnterableBuildings } from "@/components/EnterableBuildings";
+import { GunStore } from "@/components/GunStore";
 import { AudioEngine } from "@/components/AudioEngine";
 import { NitroFX } from "@/components/NitroFX";
 import { DriftFX } from "@/components/DriftFX";
@@ -45,6 +46,7 @@ import { interiorDoorAction } from "@/lib/interiors";
 import { toggleVehicleFoot } from "@/lib/player";
 import { boatSwapAction } from "@/lib/boatSwap";
 import { seatAction } from "@/lib/clubSeats";
+import { armoryPickupAction } from "@/lib/armory";
 import { stealTrafficAction } from "@/lib/steal";
 import { PoliceCar } from "@/components/PoliceCar";
 import { PoliceJeep } from "@/components/PoliceJeep";
@@ -116,8 +118,8 @@ export default function Game() {
       initAudio(); // no-ops once already initialized; needs a real user gesture, so first key does it
       const hud = useHudStore.getState();
       if (e.code === "KeyE") {
-        // door beats sitting/standing beats boat-swap beats mount beats stealing an NPC
-        if (!interiorDoorAction() && !seatAction() && !boatSwapAction() && !toggleVehicleFoot()) stealTrafficAction();
+        // door beats sitting/standing beats gun pickup beats boat-swap beats mount beats stealing an NPC
+        if (!interiorDoorAction() && !seatAction() && !armoryPickupAction() && !boatSwapAction() && !toggleVehicleFoot()) stealTrafficAction();
       } else if (e.code === "KeyB") {
         hud.toggleActive();
         hud.showMsg("SWITCHED TO: " + hud.vehicleName());
@@ -246,6 +248,7 @@ export default function Game() {
             <Club />
             <ClubInterior />
             <EnterableBuildings />
+            <GunStore />
           </Physics>
           {/* threshold matches the original's UnrealBloomPass threshold (.82) — only
               true emissive neon blooms, not the lit ground/facades. Strength is NOT

@@ -12,6 +12,7 @@ import { applyCameraRig } from "@/lib/cameraRig";
 import { cameraLook } from "@/lib/cameraLook";
 import { playerTeleport } from "@/lib/playerTeleport";
 import { SHORE_X, isOnBridgeOrBase, groundYAt } from "@/lib/marina";
+import { requestFire } from "@/lib/tankShell";
 import type { KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
 const DROWN_LIMIT = 2; // seconds in open water before respawn
@@ -66,6 +67,12 @@ const RAGDOLL_LIE_TIME = 0.6;
 const CHUTE_OPEN_ALT = 18; // metres above ground
 const CHUTE_CLOSE_ALT = 4; // auto-closes this close to the ground — the landing itself handles the rest
 const CHUTE_DESCENT_VY = -3.5; // gentle canopy sink rate, vs. freefall's -16 clamp
+// Handheld weapon (lib/armory.ts, components/GunStore.tsx) — same
+// lib/tankShell.ts fireQueue Tank.tsx's F key already drains, just a
+// human-scale muzzle point instead of Tank.tsx's BARREL_FORWARD/BARREL_UP.
+const GUN_FIRE_COOLDOWN = 0.35; // seconds between shots — a sidearm, not the tank's 0.8s cannon
+const GUN_MUZZLE_FORWARD = 0.6;
+const GUN_MUZZLE_UP = 1.35;
 
 const START = { x: -48, z: 20, h: Math.PI }; // near VENU, matches the original's player spawn
 
@@ -101,6 +108,7 @@ export function Player() {
   const ragdoll = useRef<FootRagdoll | null>(null);
   const chuteOpen = useRef(false);
   const chuteRef = useRef<THREE.Group>(null);
+  const gunCooldown = useRef(0);
   // The chase camera's own yaw, tracked separately from the character's
   // heading so input can be read relative to where the camera is actually
   // looking. Vehicles keep using their own heading directly — this is on-foot
@@ -401,6 +409,17 @@ export function Player() {
     worldState.pz = nextPos.z;
     worldState.py = nextPos.y;
     worldState.heading = foot.current.h;
+
+    // handheld weapon — same lib/tankShell.ts fireQueue Tank.tsx's own F key
+    // drains, just a human-scale muzzle point. Gated off hud.hasGun (picked
+    // up at lib/armory.ts's ARMORY) and ragdollActive (no firing mid-tumble).
+    gunCooldown.current = Math.max(0, gunCooldown.current - d);
+    if (hud.hasGun && !ragdollActive && k.fire && gunCooldown.current <= 0) {
+      gunCooldown.current = GUN_FIRE_COOLDOWN;
+      const fdx = Math.sin(foot.current.h);
+      const fdz = Math.cos(foot.current.h);
+      requestFire(nextPos.x + fdx * GUN_MUZZLE_FORWARD, nextPos.y + GUN_MUZZLE_UP, nextPos.z + fdz * GUN_MUZZLE_FORWARD, fdx, fdz);
+    }
 
     // limb animation — walk cycle, mid-air tuck, or (inClub, standing still) the
     // original's bollywood dance emote

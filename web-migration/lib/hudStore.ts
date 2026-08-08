@@ -98,6 +98,9 @@ interface HudState {
   // paint/roofline the player's sedan is currently wearing after a steal
   // (lib/steal.ts); null = its own factory colour. Consumed by Car.tsx.
   stolenCar: { color: string; style: CarStyle } | null;
+  // picked up at the armory (lib/armory.ts, components/GunStore.tsx) — Player.tsx
+  // reads this to gate F-key firing on foot, same lib/tankShell.ts fireQueue Tank.tsx uses
+  hasGun: boolean;
   // multiplier on lib/cameraLook.ts's YAW/PITCH_SENSITIVITY, player-tunable
   // via the HUD slider (components/HUD.tsx). 1 = the tuned default feel.
   lookSensitivity: number;
@@ -121,6 +124,7 @@ interface HudState {
   setSeatedAt: (v: { x: number; y: number; z: number; ry: number } | null) => void;
   toggleControlsVisible: () => void;
   setStolenCar: (v: { color: string; style: CarStyle } | null) => void;
+  setHasGun: (v: boolean) => void;
   setLookSensitivity: (v: number) => void;
   vehicleName: () => string;
 }
@@ -154,6 +158,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   seatedAt: null,
   controlsVisible: true,
   stolenCar: null,
+  hasGun: false,
   lookSensitivity: 1,
   setHud: (speedKmh, grounded) => set({ speedKmh, grounded }),
   // no-ops while on foot — B is this build's own quick-switch between owned
@@ -188,6 +193,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   setSeatedAt: (v) => set({ seatedAt: v }),
   toggleControlsVisible: () => set((s) => ({ controlsVisible: !s.controlsVisible })),
   setStolenCar: (v) => set({ stolenCar: v }),
+  setHasGun: (v) => set({ hasGun: v }),
   setLookSensitivity: (v) =>
     set({ lookSensitivity: Math.max(MIN_LOOK_SENS, Math.min(MAX_LOOK_SENS, v)) }),
   vehicleName: () => {

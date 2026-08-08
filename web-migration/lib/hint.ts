@@ -2,6 +2,7 @@ import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
 import { useHudStore, VEHICLE_NAMES, type VehicleKind } from "@/lib/hudStore";
 import { interiorHintText } from "@/lib/interiors";
+import { armoryHintText } from "@/lib/armory";
 import { trafficPositions } from "@/components/Traffic";
 import { mountRadius } from "@/lib/mountRadius";
 import { nearestSeat } from "@/lib/clubSeats";
@@ -22,6 +23,8 @@ export function computeHint(): string | null {
     const seat = nearestSeat();
     if (seat) return "Press E to sit";
   }
+  const gun = armoryHintText();
+  if (gun) return gun;
 
   let bestName: string | null = null;
   let bestD2 = Infinity;
