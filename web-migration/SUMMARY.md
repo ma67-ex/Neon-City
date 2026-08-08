@@ -2234,18 +2234,18 @@ the compound was and what its own set dressing already promised.
       drawing decorative copies in the same slots would double-render them.
       Got nitro too, same `lib/nitro.ts` rig as every other vehicle.
 
-- [ ] 19. **Nothing reacts to the player firing inside the compound** — the
+- [ ] 19. **[Assigned: Akul]** **Nothing reacts to the player firing inside the compound** — the
       gate sign reads RESTRICTED AREA / DEADLY FORCE AUTHORIZED, but
       soldiers and guard towers have no alert state, no return fire, and no
       dispatch. **Not started** — was mid-scoping (a shared alert singleton)
       when this session ended; no file exists for it yet.
 
-- [ ] 20. **The base has no audio identity** — no klaxon, wind, or generator
+- [ ] 20. **[Assigned: Akul]** **The base has no audio identity** — no klaxon, wind, or generator
       hum. The compound is silent apart from engine and tank-fire SFX, which
       makes it feel less distinct than it looks. Same idea as the club's own
       sonic signature. **Not started.**
 
-- [ ] 21. **The gate barrier arm is inert dressing** — deliberate as of
+- [ ] 21. **[Assigned: Akul]** **The gate barrier arm is inert dressing** — deliberate as of
       Milestone 25 (the tank has to be able to drive out, so the gap has no
       collider and the arm is modelled raised). Listed here only so the
       decision is visible rather than looking like an oversight: if the base
