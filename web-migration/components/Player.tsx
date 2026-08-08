@@ -11,7 +11,7 @@ import { worldState } from "@/lib/worldState";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { cameraLook } from "@/lib/cameraLook";
 import { playerTeleport } from "@/lib/playerTeleport";
-import { SHORE_X, isOnBridgeOrBase } from "@/lib/marina";
+import { SHORE_X, isOnBridgeOrBase, groundYAt } from "@/lib/marina";
 import type { KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
 const DROWN_LIMIT = 2; // seconds in open water before respawn
@@ -55,6 +55,17 @@ const RAGDOLL_MIN_SPEED = 3;
 // check, but that's AI cosmetics; this is the actual player, so it's a beat,
 // not a timeout.
 const RAGDOLL_LIE_TIME = 0.6;
+// Parachute: bailing out of a plane/helicopter (lib/player.ts's dismount,
+// teleport.y = the aircraft's own altitude) dropped the player at full
+// freefall gravity same as any other fall — no parachute existed anywhere
+// (grep for "drift"/"skid"/"parachute" across the vehicle components turned
+// up nothing). Auto-opens once falling fast enough this high above the
+// ground BENEATH the player (lib/marina.ts's groundYAt, same ground query
+// every land vehicle already uses) — a normal JUMP_VY hop never gets
+// remotely close to this altitude, so ordinary jumping is untouched.
+const CHUTE_OPEN_ALT = 18; // metres above ground
+const CHUTE_CLOSE_ALT = 4; // auto-closes this close to the ground — the landing itself handles the rest
+const CHUTE_DESCENT_VY = -3.5; // gentle canopy sink rate, vs. freefall's -16 clamp
 
 const START = { x: -48, z: 20, h: Math.PI }; // near VENU, matches the original's player spawn
 
@@ -88,6 +99,8 @@ export function Player() {
   // set on a hard vehicle bail (see teleport-consumption block below), null
   // the rest of the time — mirrors Pedestrians.tsx's own ragdoll field
   const ragdoll = useRef<FootRagdoll | null>(null);
+  const chuteOpen = useRef(false);
+  const chuteRef = useRef<THREE.Group>(null);
   // The chase camera's own yaw, tracked separately from the character's
   // heading so input can be read relative to where the camera is actually
   // looking. Vehicles keep using their own heading directly — this is on-foot
@@ -291,8 +304,30 @@ export function Player() {
     const spaceDown = k.handbrake;
     if (!ragdollActive && spaceDown && !spaceWasDown.current && groundedRef.current) foot.current.vy = JUMP_VY;
     spaceWasDown.current = spaceDown;
-    const gravity = foot.current.vy > 0 && !spaceDown ? GRAV_RISING_RELEASED : GRAV_OTHER;
-    foot.current.vy = Math.max(foot.current.vy + gravity * d, -16);
+
+    // parachute: auto-deploy once falling fast, this high above the ground
+    // directly beneath the player. Clears any in-progress ragdoll tumble —
+    // a real jumper stops tumbling and hangs upright the instant the canopy
+    // catches air, not mid-spin.
+    const posNow = body.translation();
+    const heightAG = posNow.y - groundYAt(posNow.x, posNow.z);
+    if (!chuteOpen.current && foot.current.vy < -3 && heightAG > CHUTE_OPEN_ALT) {
+      chuteOpen.current = true;
+      ragdoll.current = null;
+      groupRef.current.rotation.x = 0;
+    } else if (chuteOpen.current && (groundedRef.current || heightAG < CHUTE_CLOSE_ALT)) {
+      chuteOpen.current = false;
+    }
+
+    if (chuteOpen.current) {
+      // ease toward a gentle canopy sink rate instead of freefall gravity —
+      // same "ease toward a target" idiom lib/cameraRig.ts's speed-FOV widen uses
+      foot.current.vy += (CHUTE_DESCENT_VY - foot.current.vy) * Math.min(1, 3 * d);
+    } else {
+      const gravity = foot.current.vy > 0 && !spaceDown ? GRAV_RISING_RELEASED : GRAV_OTHER;
+      foot.current.vy = Math.max(foot.current.vy + gravity * d, -16);
+    }
+    if (chuteRef.current) chuteRef.current.visible = chuteOpen.current;
 
     // ground friction bleeding off any bail-out slide (see SLIDE_DRAG) — added
     // on top of, not instead of, the WASD walk so pressing a key mid-skid
@@ -419,6 +454,9 @@ export function Player() {
       <CuboidCollider ref={colliderRef} args={[0.3, 0.75, 0.3]} collisionGroups={PLAYER_GROUPS} />
       <group ref={groupRef} position={[0, -0.75, 0]}>
         <PersonMesh legL={legL} legR={legR} kneeL={kneeL} kneeR={kneeR} armL={armL} armR={armR} />
+        <group ref={chuteRef} visible={false}>
+          <ParachuteMesh />
+        </group>
       </group>
     </RigidBody>
   );
@@ -453,6 +491,38 @@ function Leg({ x, legRef, kneeRef, trouser, shoe }: { x: number; legRef: React.R
           {shoe}
         </mesh>
       </group>
+    </group>
+  );
+}
+
+const CANOPY_MAT = new THREE.MeshLambertMaterial({ color: "#e8402f", side: THREE.DoubleSide });
+const CANOPY_STRIPE_MAT = new THREE.MeshLambertMaterial({ color: "#f4f0e6", side: THREE.DoubleSide });
+const RISER_MAT = new THREE.MeshBasicMaterial({ color: "#2a2a2c" });
+
+// Static geometry, no per-frame animation — the parent <group ref={chuteRef}>
+// in Player's own JSX owns visibility, toggled off chuteOpen.current every
+// frame. Canopy sits above the head (local y~2.1 — HIP_Y=0.59 plus torso/
+// head puts the head around y~1.5), risers run down to shoulder height.
+function ParachuteMesh() {
+  return (
+    <group position={[0, 2.2, 0]}>
+      {/* dome canopy — alternating coloured gores via 8 wedge segments */}
+      {Array.from({ length: 8 }).map((_, i) => (
+        <mesh key={i} rotation={[0, (i / 8) * Math.PI * 2, 0]} material={i % 2 === 0 ? CANOPY_MAT : CANOPY_STRIPE_MAT} castShadow>
+          <sphereGeometry args={[1.1, 8, 6, (i / 8) * Math.PI * 2, (Math.PI * 2) / 8, 0, Math.PI / 2]} />
+        </mesh>
+      ))}
+      {/* four risers from the canopy skirt down to the harness at shoulder height */}
+      {[
+        [0.75, 0],
+        [-0.75, 0],
+        [0, 0.75],
+        [0, -0.75],
+      ].map(([x, z], i) => (
+        <mesh key={i} position={[x * 0.6, -1.1, z * 0.6]} rotation={[z !== 0 ? Math.PI / 10 : 0, 0, x !== 0 ? -Math.sign(x) * Math.PI / 10 : 0]} material={RISER_MAT}>
+          <cylinderGeometry args={[0.015, 0.015, 1.3, 6]} />
+        </mesh>
+      ))}
     </group>
   );
 }
