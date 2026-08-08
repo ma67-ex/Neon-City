@@ -71,6 +71,12 @@ const __pf = typeof window !== "undefined" ? new URLSearchParams(window.location
 const PF_DPR: [number, number] = [1, __pf.get("dpr") ? Number(__pf.get("dpr")) : 2];
 const PF_AO = __pf.get("ao") ?? "high"; // "off" | "low" | "medium" | "high"
 const PF_ENV = __pf.get("env") !== "off";
+const PF_AO_PASS =
+  PF_AO === "off" ? (
+    <></>
+  ) : (
+    <N8AO aoRadius={2} distanceFalloff={1} intensity={3} quality={PF_AO as "low" | "medium" | "high"} />
+  );
 // PERFTEMP-END
 
 const CYCLABLE = new Set(["car", "bike", "boat"]);
