@@ -19,7 +19,7 @@
 // only for lib/player.ts's mount-range scan: without it, a plane or
 // helicopter flying overhead reads as "in range, press E" from directly
 // underneath on the ground, because the scan only ever compared x/z.
-export const worldState = { px: 0, pz: 0, py: 0, heading: 0 };
+export const worldState = { px: 0, pz: -82, py: 0, heading: 0 };
 
 if (typeof window !== "undefined") {
   try {
