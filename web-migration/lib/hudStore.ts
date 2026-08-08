@@ -82,6 +82,11 @@ interface HudState {
   waypointDeg: number;
   mapOpen: boolean;
   inClub: boolean;
+  // which registered building (lib/buildings.ts) the player is currently
+  // inside, or null while outdoors/inClub is false — selects which
+  // building's InteriorComponent renders. inClub itself stays the plain
+  // indoor/outdoor gate other systems (Weather/Headlights/Player) already key off.
+  activeBuildingId: string | null;
   // VIP-lounge seat the player is currently sat in (lib/clubSeats.ts), or
   // null while standing/driving. Player.tsx freezes movement and snaps to
   // this spot every frame while set; E toggles it via seatAction().
