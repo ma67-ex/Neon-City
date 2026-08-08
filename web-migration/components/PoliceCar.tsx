@@ -110,7 +110,15 @@ export function PoliceCar({ kind = "policeCar" }: { kind?: VehicleKind } = {}) {
     fallSpeed.current += GRAVITY_PULL * d;
     // see Car.tsx: EXCLUDE_DYNAMIC lets the cruiser plow through props instead
     // of sliding/stopping on them, while the solver still shoves the prop aside.
-    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC);
+    // filterGroups=POLICE_SWEEP_GROUPS on the sweep itself (this call had no
+    // 4th argument at all, so it collided with everything): without it a parked
+    // cruiser's own zero-input sweep treated an on-foot player who walked into
+    // it as an obstacle and depenetrated against them every frame — the visible
+    // unprompted jerk/push. POLICE_SWEEP_GROUPS, not Car.tsx/Bike.tsx's
+    // VEHICLE_SWEEP_GROUPS: same on-foot-player exclusion, but it keeps the
+    // membership bit that leaves the cruiser blocked by VEHICLE_ONLY gates and
+    // curbs, which is the behaviour it has always had. See lib/collisionGroups.ts.
+    controller.computeColliderMovement(collider, { x: dx, y: fallSpeed.current * d, z: dz }, QueryFilterFlags.EXCLUDE_DYNAMIC, POLICE_SWEEP_GROUPS);
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
