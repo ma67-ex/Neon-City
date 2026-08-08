@@ -1,7 +1,7 @@
 import { worldState } from "@/lib/worldState";
 import { vehicleState } from "@/lib/vehicleState";
 import { useHudStore, VEHICLE_NAMES, type VehicleKind } from "@/lib/hudStore";
-import { clubHintText } from "@/lib/club";
+import { interiorHintText } from "@/lib/interiors";
 import { trafficPositions } from "@/components/Traffic";
 import { mountRadius } from "@/lib/mountRadius";
 import { nearestSeat } from "@/lib/clubSeats";
