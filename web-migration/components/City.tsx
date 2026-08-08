@@ -163,7 +163,7 @@ function buildGlassTextures() {
 // texture" trick the original's tileTex uses for its entire infinite ground,
 // just one tile = one chunk instead of one tile repeated 16x16 under a giant
 // plane (equivalent result, simpler to slot into per-chunk streaming).
-function buildTileTexture(interiorFill: string) {
+function buildTileTexture(interiorFill: string, isGrass = false) {
   const size = 1536; // 4x the original 384 — NearestFilter below needs enough texels that blockiness stays sub-pixel at normal driving distance, not just "not blurry"
   // rounded to whole pixels — canvas antialiases shapes drawn at fractional
   // coordinates, which is what made road edges/curbs/lane lines/crosswalk
@@ -177,19 +177,47 @@ function buildTileTexture(interiorFill: string) {
       g.fillStyle = `rgba(0,0,0,${Math.random() * 0.05})`;
       g.fillRect(Math.random() * size, Math.random() * size, 3, 3);
     }
-    // sidewalk slab joints (expansion lines across the concrete interior —
-    // ported from the original's tileTex, index.html ~3706-3709)
-    g.strokeStyle = "rgba(18,20,24,.3)";
-    g.lineWidth = 0.7;
-    for (let u = 15; u <= 85; u += 5) {
+    if (isGrass) {
+      // blade-of-grass fleck variation — light/dark green speckle instead of
+      // concrete dust, same density as the dust loop above
+      for (let i = 0; i < 260; i++) {
+        const light = Math.random() < 0.5;
+        g.fillStyle = light ? "rgba(210,255,190,.08)" : "rgba(10,30,5,.12)";
+        g.fillRect(Math.random() * size, Math.random() * size, 2, 5);
+      }
+      // a real walking path (light stone ring inside the green) — the old
+      // code ran the SAME near-black, low-opacity concrete-joint lines below
+      // on every tile including this one, but rgba(18,20,24,.3) over dark
+      // green is invisible: no path/sidewalk ever actually read inside a
+      // park, it just looked like a flat green blob. This is the sidewalk
+      // grass chunks were missing. Radius 30 sits inside `half`=34 (Chunk's
+      // buildable interior) and clear of the park's own tree ring (see
+      // Chunk's isPark trees below, now kept inside r=24 for this reason).
+      g.strokeStyle = "#b8b8a8";
+      g.lineWidth = px(4);
       g.beginPath();
-      g.moveTo(px(u), 0);
-      g.lineTo(px(u), size);
+      g.arc(px(50), px(50), px(30), 0, Math.PI * 2);
       g.stroke();
+      g.strokeStyle = "rgba(120,120,105,.5)";
+      g.lineWidth = px(0.35);
       g.beginPath();
-      g.moveTo(0, px(u));
-      g.lineTo(size, px(u));
+      g.arc(px(50), px(50), px(30), 0, Math.PI * 2);
       g.stroke();
+    } else {
+      // sidewalk slab joints (expansion lines across the concrete interior —
+      // ported from the original's tileTex, index.html ~3706-3709)
+      g.strokeStyle = "rgba(18,20,24,.3)";
+      g.lineWidth = 0.7;
+      for (let u = 15; u <= 85; u += 5) {
+        g.beginPath();
+        g.moveTo(px(u), 0);
+        g.lineTo(px(u), size);
+        g.stroke();
+        g.beginPath();
+        g.moveTo(0, px(u));
+        g.lineTo(size, px(u));
+        g.stroke();
+      }
     }
     const roadW = px(10);
     // asphalt road strips — patched blotches, aggregate speckle, wheel-path
@@ -348,7 +376,7 @@ function buildTileTexture(interiorFill: string) {
 const [FACADE_GRID_TEX, FACADE_GLOW_TEX] = buildFacadeTextures();
 const [GLASS_GRID_TEX, GLASS_GLOW_TEX] = buildGlassTextures();
 const CITY_TILE_TEX = buildTileTexture("#82868d"); // concrete sidewalk
-const PARK_TILE_TEX = buildTileTexture("#3f6b2f"); // park grass
+const PARK_TILE_TEX = buildTileTexture("#3f6b2f", true); // park grass
 
 // grey/tan stone-facade tints + the original's literal glassTowerMats blue
 // hex values, each paired with the ONE shared grid/glow texture above.
@@ -844,10 +872,13 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
     }
     if (isPark) {
       // a ring of extra trees around the park interior, like the original's
-      // isPark tree loop — no fountain/benches/sports field (cut, see file header)
+      // isPark tree loop — no fountain/benches/sports field (cut, see file
+      // header). Radius capped at 24 (was 34, reaching past the park's own
+      // walking-path ring at r=30 — see buildTileTexture's isGrass branch)
+      // so a tree never spawns standing in the middle of the path.
       for (let i = 0; i < 6; i++) {
         const a = rand() * Math.PI * 2;
-        const rr = 15 + rand() * 19;
+        const rr = 8 + rand() * 16;
         trees.push({
           x: cx + Math.cos(a) * rr,
           z: cz + Math.sin(a) * rr,
