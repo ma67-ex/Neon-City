@@ -766,6 +766,34 @@ const KIND_RANGES: Record<BuildingKind, { w: [number, number]; d: [number, numbe
 
 type TreeDesc = { x: number; z: number; h: number; r: number; matIdx: number };
 
+const LAMP_POLE_MAT = new THREE.MeshStandardMaterial({ color: "#26282c", metalness: 0.6, roughness: 0.4 });
+const LAMP_HEAD_MAT = new THREE.MeshStandardMaterial({ color: "#1c1a10", emissive: "#ffb060", emissiveIntensity: 2.2, roughness: 0.5 });
+const LAMP_HEIGHT = 5.2;
+const LAMP_ARM = 1.1;
+
+// ponytail: always-on, no day/night dimmer — Club.tsx's own VENU sign
+// lights are likewise always on regardless of time of day, same simplification.
+// Upgrade path if it ever matters: scale LAMP_HEAD_MAT.emissiveIntensity and
+// the PointLight's intensity off SkyCycle.tsx's own night factor.
+function StreetLamp({ x, z }: { x: number; z: number }) {
+  return (
+    <group position={[x, 0, z]}>
+      <mesh material={LAMP_POLE_MAT} castShadow>
+        <cylinderGeometry args={[0.06, 0.08, LAMP_HEIGHT, 8]} />
+      </mesh>
+      <group position={[0, LAMP_HEIGHT / 2, 0]}>
+        <mesh position={[LAMP_ARM / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]} material={LAMP_POLE_MAT}>
+          <cylinderGeometry args={[0.045, 0.045, LAMP_ARM, 6]} />
+        </mesh>
+        <mesh position={[LAMP_ARM, -0.12, 0]} material={LAMP_HEAD_MAT}>
+          <sphereGeometry args={[0.22, 10, 8]} />
+        </mesh>
+      </group>
+      <pointLight position={[LAMP_ARM, LAMP_HEIGHT / 2 - 0.12, 0]} color="#ffb060" intensity={1.6} distance={14} decay={2} />
+    </group>
+  );
+}
+
 function Chunk({ ci, cj }: { ci: number; cj: number }) {
   const cx = ci * CELL;
   const cz = cj * CELL;
@@ -779,7 +807,7 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
     HIGHWAY_CHUNKS.has(`${ci},${cj}`);
 
   const content = useMemo(() => {
-    if (isExempt) return { buildings: [] as BuildingSpec[], trees: [] as TreeDesc[], isPark: false };
+    if (isExempt) return { buildings: [] as BuildingSpec[], trees: [] as TreeDesc[], isPark: false, lamp: null as { x: number; z: number } | null };
     const rand = mulberry32(((ci * 73856093) ^ (cj * 19349663) ^ 0x5bd1e995) >>> 0);
     const isPark = rand() < 0.13; // matches the original's isPark chance exactly
     const margin = ROAD_W / 2 + 6;
@@ -889,7 +917,17 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
       }
     }
 
-    return { buildings, trees, isPark };
+    // one streetlamp per chunk, at its own NW corner intersection — every
+    // corner is shared by up to 4 chunks, so only the one that "owns" it
+    // (its own corner, not a neighbour's) ever renders one there, or every
+    // intersection between non-exempt chunks would get 1-4 stacked lamps.
+    // Streets otherwise had zero lighting infrastructure at all — pitch
+    // black away from headlights/window glow once night fell (see
+    // components/SkyCycle.tsx's day/night cycle) — the actual gap behind
+    // "current streets need a visual pass."
+    const lamp = { x: cx - CELL / 2, z: cz - CELL / 2 };
+
+    return { buildings, trees, isPark, lamp };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ci, cj]);
 
@@ -905,6 +943,7 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
         <Building key={i} spec={b} />
       ))}
       <Trees specs={content.trees} />
+      {content.lamp && <StreetLamp x={content.lamp.x} z={content.lamp.z} />}
     </group>
   );
 }
