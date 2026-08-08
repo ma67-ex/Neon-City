@@ -3,14 +3,20 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { useHudStore } from "@/lib/hudStore";
+import { useHudStore, type VehicleKind } from "@/lib/hudStore";
 import { vehicleState } from "@/lib/vehicleState";
 
-// Standalone Canvas child, no props — reads the player car's live state off
-// the same shared singletons AudioEngine.tsx uses (hudStore.nitroActive +
-// vehicleState.car), rather than threading anything through Car.tsx's props.
-// Player car only (index.html's specialAcc/lotSpecials idle-puff system is
-// explicitly for OTHER parked cars, not the player — not ported here).
+// Reads whichever vehicle's live state off the same shared singletons
+// AudioEngine.tsx uses (hudStore.nitroActive + vehicleState[vehicleKey]).
+// Originally player-car only (index.html's specialAcc/lotSpecials idle-puff
+// system is explicitly for OTHER parked cars, not the player — still not
+// ported here) — every other nitro-capable ground vehicle (bike/policeCar/
+// policeJeep/jeep/truck/bus/tank) boosted with zero visual effect at all,
+// which is its own "not realistic" bug. Parametrized over vehicleKey/halfLen
+// instead, one instance per vehicle (see Game.tsx), each with its own
+// independent puff/flame ref state since that all lives in this component's
+// own useRefs. Boats/aircraft still excluded — different exhaust language,
+// same original scoping call.
 
 // Wispy puff texture — several overlapping soft blobs instead of one perfect
 // radial gradient, so a puff reads as an irregular cloud wisp rather than a
@@ -45,13 +51,10 @@ const PUFF_COUNT = 36;
 
 type Puff = { life: number; max: number; vx: number; vy: number; vz: number; rot: number; rotSpeed: number };
 
-// Matches Car.tsx's carBox.z (4.6) — the original reads this per-vehicle off
-// v.g.userData.len, but the player car here is always the one fixed length.
-const CAR_HALF_LEN = 2.3;
 const EXHAUST_OFFSET = 0.5; // original's exhaustWorld(v, 0.5) for nitro puffs
 const BACKFIRE_OFFSET = 0.4; // original's exhaustWorld(v, 0.4) for the release pop
 
-export function NitroFX() {
+export function NitroFX({ vehicleKey, halfLen }: { vehicleKey: VehicleKind; halfLen: number }) {
   const puffRefs = useRef<(THREE.Sprite | null)[]>([]);
   // mutable per-frame simulation state, same "kept in a ref, never re-renders"
   // idiom as Car.tsx's car/nitroFuel/fallSpeed refs — not useMemo/useState,
@@ -94,10 +97,10 @@ export function NitroFX() {
 
   useFrame((_state, dt) => {
     const hud = useHudStore.getState();
-    // active === "car" gate matches AudioEngine.tsx's exact same guard against
-    // hudStore.nitroActive going stale after the player exits the car.
-    const active = hud.active === "car" && hud.nitroActive;
-    const car = vehicleState.car;
+    // active === vehicleKey gate matches AudioEngine.tsx's exact same guard
+    // against hudStore.nitroActive going stale after the player exits.
+    const active = hud.active === vehicleKey && hud.nitroActive;
+    const car = vehicleState[vehicleKey];
 
     for (let i = 0; i < PUFF_COUNT; i++) {
       const p = puffsRef.current[i];
@@ -125,7 +128,7 @@ export function NitroFX() {
       }
     }
 
-    const zBack = -CAR_HALF_LEN - 0.5;
+    const zBack = -halfLen - 0.5;
     if (active) {
       if (rigRef.current) {
         rigRef.current.visible = true;
@@ -146,7 +149,7 @@ export function NitroFX() {
       spawnAcc.current += dt;
       while (spawnAcc.current > 0.04) {
         spawnAcc.current -= 0.04;
-        const zB = -CAR_HALF_LEN - EXHAUST_OFFSET;
+        const zB = -halfLen - EXHAUST_OFFSET;
         const ex = Math.random() < 0.5 ? -0.34 : 0.34;
         spawn(car.x + Math.sin(car.h) * zB + Math.cos(car.h) * ex, 0.4, car.z + Math.cos(car.h) * zB - Math.sin(car.h) * ex);
       }
@@ -154,7 +157,7 @@ export function NitroFX() {
       if (rigRef.current) rigRef.current.visible = false;
       if (wasActive.current) {
         // one extra puff on release — mirrors the original's exhaustBackfire "pop"
-        const zB = -CAR_HALF_LEN - BACKFIRE_OFFSET;
+        const zB = -halfLen - BACKFIRE_OFFSET;
         spawn(car.x + Math.sin(car.h) * zB, 0.4, car.z + Math.cos(car.h) * zB);
       }
     }

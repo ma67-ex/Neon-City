@@ -34,6 +34,7 @@ import { ClubInterior } from "@/components/ClubInterior";
 import { EnterableBuildings } from "@/components/EnterableBuildings";
 import { AudioEngine } from "@/components/AudioEngine";
 import { NitroFX } from "@/components/NitroFX";
+import { DriftFX } from "@/components/DriftFX";
 import { Debris } from "@/components/Debris";
 import { WaypointTracker } from "@/components/WaypointTracker";
 import { HUD } from "@/components/HUD";
@@ -164,7 +165,21 @@ export default function Game() {
           <Headlights />
           <MouseLook />
           <AudioEngine />
-          <NitroFX />
+          {/* one instance per nitro-capable ground vehicle — was car-only,
+              so boosting on the bike/police cruiser/jeep/truck/bus/tank
+              produced zero smoke or flame at all. halfLen per kind mirrors
+              each vehicle's own collider box (see each component's carBox/
+              bikeBox/tankBox, or CommercialVehicle.tsx's SPEC for jeep/
+              truck/bus). Boats/aircraft still excluded — see NitroFX.tsx. */}
+          <NitroFX vehicleKey="car" halfLen={2.3} />
+          <NitroFX vehicleKey="bike" halfLen={0.95} />
+          <NitroFX vehicleKey="policeCar" halfLen={2.4} />
+          <NitroFX vehicleKey="policeJeep" halfLen={2.2} />
+          <NitroFX vehicleKey="jeep" halfLen={1.8} />
+          <NitroFX vehicleKey="truck" halfLen={2.8} />
+          <NitroFX vehicleKey="bus" halfLen={3.25} />
+          <NitroFX vehicleKey="tank" halfLen={4.76} />
+          <DriftFX />
           <Debris />
           <TankCombat />
           <WaypointTracker />
