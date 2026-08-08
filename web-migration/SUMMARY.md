@@ -2281,3 +2281,267 @@ parachute mechanic) are all done — implemented, typecheck-clean, and pushed
 to `main` (`d347936..8a1d3ea`, 11 commits). Full per-item detail lives in
 those commit messages; see `git log d347936..8a1d3ea` for the complete
 breakdown of what changed and why.
+
+## Abdullah's next task list (2026-08-08) — from voice note, NOT STARTED
+
+19 items, transcribed from a rambling voice note (Hindi/Urdu/Punjabi mix via
+Wispr Flow) and interpreted/organized into discrete tasks. Not yet confirmed
+item-by-item with Akul the way the previous batch was — do that before
+starting, same as the last list's own process note recommends.
+
+**Stars = build complexity/effort, 1 (quick) to 5 (major system).**
+**"BLOCKED ON ART" = do not start until Akul supplies the named reference
+images** — these are explicitly "show it a real photo, it copies the look"
+tasks, same approach the previous list's #23 (enterable buildings) used.
+
+- [ ] 34. ★★★★☆ **Walk-in cinema.** A real interior — auditorium seating,
+      a screen with a movie always playing (a looping animated texture is
+      enough; no need for actual video decode). Same door/interior pattern
+      as VENU (`lib/club.ts`, `components/Club.tsx`/`ClubInterior.tsx`) or
+      the generic building system from the last batch
+      (`lib/interiors.ts`'s `registerInterior()`, `lib/interiorSpots.ts`,
+      `components/EnterableBuildings.tsx`) — the interior needs proper
+      auditorium seating though, which the generic building system doesn't
+      have; look at `lib/clubSeats.ts` (`LOCAL_SEATS`, `nearestSeat()`,
+      `seatAction()`) for the seat-snap pattern to extend. **BLOCKED ON
+      ART** — Akul is providing reference pictures for the cinema's look.
+
+- [ ] 35. ★★★☆☆ **GTA5-style phone.** Current phone
+      (`components/Phone.tsx`, added this session) is a centred modal —
+      Abdullah wants it redesigned to sit fixed in the bottom-right corner
+      like GTA5's, with an iOS-style OS: icon grid, app-like menus, a call
+      list. Keep the existing wiring (`hud.phoneOpen`/`setPhoneOpen` in
+      `lib/hudStore.ts`, KeyP toggle in `components/Game.tsx`) and the
+      existing actions (call mechanic via `lib/vehicleSummon.ts`, GPS
+      waypoint via `hud.setNavTarget`, weather via `cycleWeather()`) — this
+      is a visual/UX redesign of the shell, not new functionality. **BLOCKED
+      ON ART** — Akul providing reference pictures for the phone's look.
+
+- [ ] 36. ★★★☆☆ **High-speed car glitch — camera flinch, judder above
+      ~100 km/h.** Reported as: the car starts lagging/flinching and the
+      camera stutters at high speed (car top speed with nitro is ~124 m/s =
+      ~446 km/h, so "above 100" is well within normal driving range, not an
+      edge case). **Assign: Akul**, per Abdullah's own note. Look at
+      `lib/carPhysics.ts`'s `stepCarPhysics()` (speed clamp, drag terms) and
+      `lib/cameraRig.ts`'s chase-cam lerp (`camPos.lerp(want, k)` with
+      `k = 1 - Math.pow(..., dClamped)`, `dClamped = Math.min(dt, 0.033)`) —
+      a pow()-based ease can behave unexpectedly at the extremes of its
+      input range; also check `Physics gravity=... timeStep={1/60}` in
+      `components/Game.tsx` (fixed-step accumulator) for whether a fast-
+      moving kinematic body is tunneling through/skipping ground snap
+      between steps at high velocity.
+
+- [ ] 37. ★★★★☆ **Real grass with wind sway — REPLACES this session's
+      park sidewalk fix.** Abdullah does not want the light-stone walking
+      path this session added to park chunks (`components/City.tsx`'s
+      `buildTileTexture()`, `isGrass` branch, `PARK_TILE_TEX`) — he wants
+      that path/edge line gone, replaced with real uneven, overgrown grass
+      that visibly sways in the wind. This is a bigger scope than a canvas
+      texture: likely needs actual grass-blade geometry (instanced, wind-
+      displaced via a vertex shader driven by `state.clock.elapsedTime`,
+      same idiom `components/SkyCycle.tsx`/other time-driven effects use)
+      rather than a flat painted texture. **Assign: Akul.** When this
+      lands, delete the `isGrass` path-ring block added in commit
+      `e4b0289` (this session) — don't leave both systems fighting each
+      other.
+
+- [ ] 38. ★★☆☆☆ **Snow/rain traction loss.** Partial system already
+      exists — `lib/weatherState.ts` has a `wetGrip` multiplier already
+      wired into `lib/carPhysics.ts`'s `stepCarPhysics()`
+      (`const grip = (input.handbrake ? 2.2 : h.grip) * weatherState.wetGrip;`).
+      Check whether `weatherState` has a distinct SNOW case (vs. just rain)
+      and whether `wetGrip`'s current value range is strong enough to read
+      as real traction loss — Abdullah wants a noticeably slippier feel,
+      not just a subtle grip tweak. Consider also spawning
+      `components/DriftFX.tsx`-style tire-smoke/spray puffs (this session's
+      new drift-smoke system) more aggressively when `wetGrip` is active,
+      so the loss of control has a visible cue, not just a physics number.
+
+- [ ] 39. ★★★★☆ **Better cockpit: console/armrest + visible driver
+      hands on the wheel.** `components/CarInterior.tsx` already has a
+      steering wheel mesh and dashboard — Abdullah wants a visible
+      character rig (or at least hand meshes) turning the wheel
+      left/right as the player steers, plus console/armrest geometry.
+      Live steering input is already available every frame
+      (`car.current.steerAng` in `lib/carPhysics.ts`'s `CarState`, or the
+      raw `k.left`/`k.right` from `lib/useKeyboard.ts`) — wire a hand
+      mesh's rotation off `steerAng` the same way `CarInterior.tsx`
+      already wires its steering wheel mesh's rotation, if it does; if
+      not, that's the pattern to add. This session's cockpit work
+      (`dc32640`) only fixed *visibility gating* (helicopter/truck/jeep/
+      bus cockpits showing when they shouldn't, or not existing at all) —
+      it didn't touch quality/detail, so this is new scope, not a
+      follow-up bug.
+
+- [ ] 40. ★★☆☆☆ **Bike rider renders as a solid black blob, not the
+      player.** `components/Bike.tsx`'s `BikeRider()` function (a
+      "minimal seated silhouette," per its own comment, distinct from the
+      full `PersonFigure` walk-cycle rig `Pedestrians.tsx` uses) is
+      probably losing its material/lighting — check whether its meshes
+      have a real `meshStandardMaterial`/`meshLambertMaterial` with a
+      light-reachable color, vs. an unlit black material, missing
+      `castShadow`/normals, or sitting in Rider's own shadow with no
+      fill light nearby (the fix is very likely small — a material or
+      lighting fix, not a rig rebuild). Compare against how
+      `components/CarInterior.tsx` or `HeliCockpit.tsx` light their own
+      interior occupant/dashboard (both added local `pointLight`s "without
+      it reads as a black silhouette against the sky" — same fix may
+      apply here).
+
+- [ ] 41. ★★☆☆☆ **VENU ticket booth entrance.** A small entry area
+      before the club door where the player gets a "ticket" (can be as
+      simple as a one-time E-triggered state flip, same shape as this
+      session's `armoryPickupAction()` in `lib/armory.ts`) before the
+      existing `clubDoorAction`/`interiorDoorAction` (`lib/interiors.ts`,
+      `lib/club.ts`) will let them through. Gate `interiorDoorAction()`'s
+      VENU entry on a new `hud.hasTicket`-style flag the same way
+      `armoryPickupAction()` gates on `hud.hasGun`.
+
+- [ ] 42. ★★★★★ **Player mansion.** A large house the player can enter
+      and interact with (sleep on a bed — likely a fast-forward-time or
+      save-point action, similar in spirit to `lib/clubSeats.ts`'s seat-
+      snap but probably needs its own state, not a reuse of seatedAt),
+      fully furnished/detailed like a real house — kitchen, living room,
+      bedroom, etc., not a bare room. Biggest single item on this list —
+      probably deserves its own dedicated session rather than being
+      folded into a batch. **BLOCKED ON ART** — Akul providing a mansion
+      reference picture.
+
+- [ ] 43. ★★★☆☆ **Water waves.** `components/Water.tsx`'s water plane
+      is currently flat/static — needs a wave effect, most likely a
+      vertex-displacement shader driven by `state.clock.elapsedTime` (the
+      same per-frame time source `SkyCycle.tsx` and other animated
+      systems already read off `useFrame`). Check whether Water.tsx
+      already uses a custom `shaderMaterial`/`onBeforeCompile` hook to
+      extend, or a plain `meshStandardMaterial` that needs replacing.
+
+- [ ] 44. ★★☆☆☆ **Police boat sirens.** `components/PatrolBoat.tsx` has
+      no light bar at all — `components/PoliceCar.tsx` and
+      `components/PoliceJeep.tsx` both already have one (`lightRefs`,
+      the `flashRed`/`flashAmber` `Math.floor(state.clock.elapsedTime * 5) % 2`
+      pattern flipping between two `MeshBasicMaterial` colors every
+      frame). Port the same pattern onto PatrolBoat's mesh, plus a siren
+      sound cue via `lib/audio.ts` if it has a hook for vehicle-specific
+      one-shot/looping sounds (check how horn/siren sounds, if any exist,
+      are triggered elsewhere first).
+
+- [ ] 45. ★★★☆☆ **Sharpen distant roads/white lines — currently read
+      blurry far away.** `components/City.tsx`'s `buildTileTexture()`
+      already sets `tex.magFilter = THREE.NearestFilter` and
+      `tex.anisotropy = 16` specifically to fix near-camera blur (see
+      that function's own comments) — the *distant* blur is a different
+      problem, most likely `minFilter`'s default mipmapping smoothing
+      lane markings into mush at a distance, or the chunk-streaming
+      system (`VIEW = 2` chunk radius) not having enough resolution once
+      a tile is far from camera. Investigate `tex.minFilter` (currently
+      unset, defaults to `THREE.LinearMipmapLinearFilter`) and whether a
+      sharper `minFilter` or a higher base texture `size` (currently 1536)
+      actually fixes far-distance clarity without reintroducing the near-
+      camera shimmer NearestFilter was chosen to avoid.
+
+- [ ] 46. ★★★☆☆ **Mansion guards — 2 permanent patrolling guards.**
+      Depends on #42 (mansion) existing first. Likely reuses
+      `components/Pedestrians.tsx`'s ped rig (or `PersonFigure`) on a
+      fixed patrol loop around the mansion's coordinates, rather than the
+      random-wander AI regular pedestrians use — check whether
+      Pedestrians.tsx supports a "patrol a fixed route" mode already or
+      needs one added.
+
+- [ ] 47. ★★★★☆ **Rain puddle reflections.** Puddles that form on the
+      road during rain should have a real reflective surface. Gate on
+      `weatherState` (rain intensity). Full real-time planar reflection
+      (a mirror camera pass) is expensive — consider a cheaper faked
+      reflection (a semi-transparent, high-metalness/low-roughness plane
+      decal with an environment-map reflection) before reaching for a
+      true reflector pass, given this is a small-object-count city scene
+      already running a full `EffectComposer` bloom pass
+      (`components/Game.tsx`).
+
+- [ ] 48. ★★★☆☆ **Restrict boats to water only — currently drive onto
+      roads/land.** `lib/marina.ts` has `clampFromWater()`/`SHORE_X`,
+      which stops LAND vehicles from driving INTO the water (see
+      `Car.tsx`'s "hard backstop... independent of the WATER_BOUNDARY
+      collider" comment) — boats need the mirror-image restriction
+      (clamp/block them from leaving water onto land), which doesn't
+      exist yet. Check `components/Boat.tsx`/`PatrolBoat.tsx`'s own
+      collision groups (`lib/collisionGroups.ts`) — they may currently
+      share `VEHICLE_SWEEP_GROUPS` with land vehicles, which is why they
+      pass through the same VEHICLE_ONLY curbs/gates land vehicles do;
+      boats should probably be blocked by ordinary ground geometry
+      instead.
+
+- [ ] 49. ★★★☆☆ **Bike redesign — new shape, wider body, wheels that
+      actually spin.** Current `BikeMesh`/`Wheel` in `components/Bike.tsx`
+      (redesigned after "the Verge TS Ultra" per its own comment) needs a
+      new silhouette per Akul's reference, wider than current, AND the
+      wheel meshes need actual rotation animation tied to speed (check
+      whether `Wheel`'s cylinder currently ever gets a `rotation.x`
+      (or appropriate axis given the `rotation={[0,0,Math.PI/2]}` group
+      pre-rotation) update per frame off `bike.current.speed` — likely it
+      does not, since Wheel is defined as static JSX with no ref/useFrame
+      hook). This session's #29 fix (commit `1b565cb`) only fixed the
+      hub/tire color contrast — this is a full shape + animation redo on
+      top of that, not a duplicate. **BLOCKED ON ART** — Akul providing a
+      new bike reference image.
+
+- [ ] 50. ★★★☆☆ **Cars look like they're floating — elevation/ride-
+      height issue.** Reported as tires mostly not touching the ground.
+      Check `RIDE_HEIGHT` (`components/SupercarBody.tsx`) against
+      `groundYAt()` (`lib/marina.ts`) — every land vehicle drops its
+      collider by `RIDE_HEIGHT` so the collider bottom lands on the tyre
+      contact patch (see Car.tsx's own "collider bottom on the tyre
+      contact patch, not the mesh origin" comment) — if that offset is
+      wrong for the current wheel/body proportions (especially relevant
+      if #49's bike redesign or any other body-shape change shifted
+      proportions), the whole rig floats or sinks. Check across ALL
+      vehicles sharing this pattern (Car/Bike/PoliceCar/PoliceJeep/
+      CommercialVehicle/Tank), not just one.
+
+- [ ] 51. ★★★★☆ **All FORT NEON tanks drivable, not just one.**
+      `lib/militaryBase.ts` has "a 3x3 formation of decorative
+      ParkedTanks" (per this session's own comment when adding tank
+      support) plus one single dedicated drivable spot
+      (`vehicleState.tank`, one instance, `components/Tank.tsx`). Abdullah
+      wants every tank in that formation mountable and drivable. Same
+      "id-based multiple instances of one drivable rig" pattern this
+      session's own military-base work already used for
+      `DrivableFighterJet`/`DrivableAirliner` (`jet1`/`jet2`/`jet3`,
+      `airliner1`/`airliner2`/`airliner3` in `lib/vehicleState.ts` and
+      `lib/hudStore.ts`'s `VehicleKind`) — generalize `Tank.tsx` the same
+      way those were generalized from a single instance, and make sure
+      `components/TankCombat.tsx`'s `SHELLABLE` exclusion list (currently
+      excludes the single `"tank"` kind so a tank can't shell itself)
+      correctly excludes ALL tank instances once there are several.
+      Firing/explosions can reuse the existing `lib/tankShell.ts`
+      fireQueue + `TankCombat.tsx` system as-is — that part doesn't need
+      new code, just more tanks feeding into it.
+
+- [ ] 52. ★★☆☆☆ **Streetlights: move off intersections, hover over the
+      road from the side — REVISES this session's streetlight work.**
+      This session added one `StreetLamp` per chunk at its own NW corner
+      intersection (`components/City.tsx`, commit `8a1d3ea`). Abdullah
+      wants them OFF the intersections entirely — placed along the SIDE
+      of the road with an arm that extends out and hangs OVER the road
+      surface (a real street-lamp silhouette), not standing in the middle
+      of a 4-way crossing. The existing `StreetLamp` component (pole +
+      arm + emissive head + `pointLight`) is reusable almost as-is — this
+      is a placement/positioning change (move from chunk corner to a
+      point along one road edge, rotate the arm to reach over the
+      asphalt) more than a rebuild. Straightforward once picked up;
+      lowest-effort item on this list.
+
+**Process notes:**
+- Four items are hard-blocked on Akul supplying reference images before any
+  visual work can start: #34 (cinema), #35 (phone), #42 (mansion), #49
+  (bike). Confirm those pictures have actually arrived before picking these
+  up, same as the "show it a real photo, it copies the look" approach the
+  previous batch's #23 used successfully.
+- Two items are direct **revisions of this session's own just-shipped
+  work**, not new features layered on top: #37 (grass — replaces the park
+  path from commit `e4b0289`) and #52 (streetlight placement — repositions
+  the lamps from commit `8a1d3ea`). Don't build these as if the old version
+  should stay; remove/replace it.
+- #46 (mansion guards) is hard-blocked on #42 (mansion) existing first —
+  there's nothing to guard yet.
+- Communication loop from the previous batch still applies unless Abdullah
+  says otherwise: heads-up before pushing, confirmation after.
