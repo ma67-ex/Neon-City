@@ -75,19 +75,19 @@ export function Login() {
       <div className="content">
         <div className="title">NEON CITY DRIVE</div>
         <div className="subtitle">Sign in to save and resume your progress</div>
-        {clientId ? (
-          <div className="card">
+        <div className="card">
+          {clientId ? (
             <div ref={buttonRef} />
-            {error && <div className="signin-error">{error}</div>}
-            <button type="button" className="guest-btn" onClick={signInGuest}>
-              Continue as guest
-            </button>
-          </div>
-        ) : (
-          <div className="missing">
-            Missing <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> — see <code>.env.local</code>
-          </div>
-        )}
+          ) : (
+            <div className="missing">
+              Missing <code>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> — see <code>.env.local</code>
+            </div>
+          )}
+          {error && <div className="signin-error">{error}</div>}
+          <button type="button" className="guest-btn" onClick={signInGuest}>
+            Continue as guest
+          </button>
+        </div>
         <div className="legal">
           <Link href="/privacy">Privacy</Link>
           <span>·</span>
