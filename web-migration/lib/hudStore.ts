@@ -115,6 +115,7 @@ interface HudState {
   setNavTarget: (l: Landmark) => void;
   setMapOpen: (open: boolean) => void;
   setInClub: (v: boolean) => void;
+  setActiveBuildingId: (id: string | null) => void;
   setSeatedAt: (v: { x: number; y: number; z: number; ry: number } | null) => void;
   toggleControlsVisible: () => void;
   setStolenCar: (v: { color: string; style: CarStyle } | null) => void;
