@@ -236,7 +236,7 @@ export default function Game() {
             {/* ambient occlusion first (contact/crevice shadowing before
                 bloom adds light), SMAA last (smooths the final composited
                 edges, not just the raw geometry pass) */}
-            {PF_AO_PASS}
+            <N8AO aoRadius={2} distanceFalloff={1} intensity={3} quality="high" />
             <DynamicBloom />
             <SMAA />
           </EffectComposer>
