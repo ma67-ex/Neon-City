@@ -180,6 +180,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   setNavTarget: (l) => set({ navTarget: l, mapOpen: false }),
   setMapOpen: (open) => set({ mapOpen: open }),
   setInClub: (v) => set({ inClub: v }),
+  setActiveBuildingId: (id) => set({ activeBuildingId: id }),
   setSeatedAt: (v) => set({ seatedAt: v }),
   toggleControlsVisible: () => set((s) => ({ controlsVisible: !s.controlsVisible })),
   setStolenCar: (v) => set({ stolenCar: v }),
