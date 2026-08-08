@@ -159,7 +159,7 @@ export default function Game() {
           {/* IBL only (background:false leaves SkyCycle's own scene.background/
               fog alone) — gives metal/glass/car-paint materials something to
               actually reflect instead of flat lighting with no environment */}
-          <Environment preset="city" background={false} />
+          {PF_ENV && <Environment preset="city" background={false} />}
 
           {/* runs after SkyCycle each frame (component render order = useFrame
               registration order) so it blends onto the SAME scene.fog SkyCycle
