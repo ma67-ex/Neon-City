@@ -18,6 +18,7 @@ import { checkCrashDebris } from "@/lib/debris";
 import { consumePedestrianHitSlowdown } from "@/lib/pedestrianHit";
 import { SupercarBody, RIDE_HEIGHT, type Detail } from "@/components/SupercarBody";
 import { clampFromWater, groundYAt } from "@/lib/marina";
+import { POLICE_SWEEP_GROUPS } from "@/lib/collisionGroups";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 import type { VehicleKind } from "@/lib/hudStore";
 
