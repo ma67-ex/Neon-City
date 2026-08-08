@@ -241,7 +241,12 @@ const BIKE_PANEL_MAT = new THREE.MeshStandardMaterial({ color: "#2b2d30", metaln
 const BIKE_GOLD_MAT = new THREE.MeshStandardMaterial({ color: "#c9a227", metalness: 0.8, roughness: 0.25 });
 const BIKE_SEAT_MAT = new THREE.MeshStandardMaterial({ color: "#17181a", roughness: 0.6 });
 const BIKE_TIRE_MAT = new THREE.MeshStandardMaterial({ color: "#141414", roughness: 0.9 });
-const BIKE_HUB_MAT = new THREE.MeshStandardMaterial({ color: "#2a2c32", metalness: 0.9, roughness: 0.25 });
+// was #2a2c32 — a dark grey barely lighter than BIKE_TIRE_MAT's near-black,
+// so against in-game lighting the hub disappeared into the tire and the
+// whole wheel read as a flat black void with no visible rim ("the tire
+// looks open"). Bright brushed chrome, same polished-metal language as
+// BIKE_GOLD_MAT's fork tubes, actually reads as a rim against the tire.
+const BIKE_HUB_MAT = new THREE.MeshStandardMaterial({ color: "#c4cad2", metalness: 0.9, roughness: 0.25 });
 
 // a wheel + its hub — the rear one gets a much bigger hub disc to read as the
 // Verge TS's signature hubless rear end (motor housing fills the wheel
@@ -317,7 +322,11 @@ export function BikeMesh() {
         </group>
       ))}
 
-      <Wheel z={0.7} hubR={0.12} hubThick={0.12} />
+      {/* front hub bumped from 0.12 — that small a disc against the now-
+          brighter BIKE_HUB_MAT read as a tiny bright dot lost in a big dark
+          tire rather than a rim; a real front wheel's hub/rim is closer to
+          half the tire's radius */}
+      <Wheel z={0.7} hubR={0.19} hubThick={0.12} />
       <Wheel z={-0.7} hubR={0.27} hubThick={0.16} />
     </group>
   );
