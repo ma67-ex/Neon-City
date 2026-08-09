@@ -2394,14 +2394,14 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       lower roughness for a real specular highlight). Re-verified live —
       rider now shows visible shape/contrast instead of a flat silhouette.
 
-- [ ] 41. ★★☆☆☆ **VENU ticket booth entrance.** A small entry area
-      before the club door where the player gets a "ticket" (can be as
-      simple as a one-time E-triggered state flip, same shape as this
-      session's `armoryPickupAction()` in `lib/armory.ts`) before the
-      existing `clubDoorAction`/`interiorDoorAction` (`lib/interiors.ts`,
-      `lib/club.ts`) will let them through. Gate `interiorDoorAction()`'s
-      VENU entry on a new `hud.hasTicket`-style flag the same way
-      `armoryPickupAction()` gates on `hud.hasGun`.
+- [x] 41. ★★☆☆☆ **[Done by Akul]** **VENU ticket booth entrance.** Fixed. Added optional `gate?: () => boolean`
+      field to `lib/interiors.ts`'s `InteriorEntry` (keeps the registry
+      generic instead of hardcoding a venu-id special case), new
+      `lib/ticketBooth.ts` mirroring `armory.ts`'s one-shot-flag shape,
+      `hud.hasTicket`/`setHasTicket` added, VENU's `registerInterior()` call
+      passes the gate. Correct E-chain/hint priority (ticket check before
+      door check). Live-verified both directions: door blocks without
+      ticket, lets you through after picking one up.
 
 - [ ] 42. ★★★★★ **Player mansion.** A large house the player can enter
       and interact with (sleep on a bed — likely a fast-forward-time or
