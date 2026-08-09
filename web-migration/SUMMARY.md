@@ -2488,8 +2488,34 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       **New shape/wider silhouette: still BLOCKED ON ART** — Akul providing
       a new bike reference image, not started.
 
-- [ ] 50. ★★★☆☆ **[Partially done by Akul]** **Cars look like they're floating — elevation/ride-
-      height issue.** **Partial — Bike.tsx fixed, PoliceJeep.tsx still
+- [x] 50. ★★★☆☆ **[Done — PoliceJeep.tsx by Abdullah 2026-08-09, Bike.tsx by Akul]**
+      **Cars look like they're floating — elevation/ride-height issue.**
+      **PoliceJeep.tsx now fixed too.** Root cause was the same shape as
+      Bike.tsx's: `ParkedPoliceJeep.tsx` wraps everything in
+      `<group position={[0,0.42,0]}>`, and the wheel mesh sits at LOCAL
+      y=-0.42 inside that group — its absolute axle height is
+      0.42+(-0.42)=0, but the wheel is a radius-0.42 cylinder around that
+      axle, so the tyre contact patch is actually at absolute y=-0.42, not 0.
+      The file's own old comment claimed the mesh "sits AT ground level
+      already... no drop needed" — checked the actual geometry instead of
+      trusting the comment, and it was wrong. Added `WHEEL_RADIUS=0.42`
+      (exported, same naming as Bike.tsx's own constant) and derived
+      `RIDE_HEIGHT` from it, applied to all 3 existing spawn/teleport/
+      respawn call sites (they already referenced the one `RIDE_HEIGHT`
+      constant, so bumping its value covered them for free) plus a new
+      `CuboidCollider` position offset (`carBox.y/2 - RIDE_HEIGHT`) to keep
+      the collider bottom matched to the new higher body origin — same
+      collider-offset move Bike.tsx's own fix made. `tsc` clean.
+      **Live-verified**: forced `hud.active` to `"policeJeep"` directly via
+      a new `__ncdHud` debug hook (`components/Weather.tsx`, exposes
+      `useHudStore` — added after the scripted proximity+keypress mount kept
+      failing) to skip the flaky mount step entirely, then walked up on foot
+      and eyeballed it from the side — all 4 wheels sit flush on the ground,
+      no visible gap, matching Bike.tsx's own verified result.
+
+      Below is the original PARTIAL entry, kept for context:
+
+      **Partial — Bike.tsx fixed, PoliceJeep.tsx still
       open.** Code-level audit found the direction contradicted the report:
       `Bike.tsx` (no `RIDE_HEIGHT` concept at all, hardcoded spawn) and
       `PoliceJeep.tsx` (local `RIDE_HEIGHT=0`, wrong for its actual wheel
