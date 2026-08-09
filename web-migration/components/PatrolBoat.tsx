@@ -32,6 +32,9 @@ export function PatrolBoat() {
   const pos = useRef({ x: save?.x ?? vehicleState.patrolBoat.x, z: save?.z ?? vehicleState.patrolBoat.z });
   const camPos = useRef(new THREE.Vector3(vehicleState.patrolBoat.x - 10, 5, vehicleState.patrolBoat.z - 10));
   const camLook = useRef(new THREE.Vector3());
+  // flashing red/blue light bar refs — same ref-callback + per-frame color-flip
+  // pattern as PoliceCar.tsx/PoliceJeep.tsx's lightRefs
+  const lightRefs = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
 
   const hullSize = useMemo(() => new THREE.Vector3(2.2, 1, 5), []);
 
