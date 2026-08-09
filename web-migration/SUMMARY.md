@@ -2426,8 +2426,10 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       of scope).** Fixed. Ported the exact `lightRefs`/flash-flip pattern
       from `PoliceCar.tsx`/`PoliceJeep.tsx` onto `PatrolBoat.tsx`, replacing
       the single static red nav-light sphere — unconditional flash
-      regardless of `isActive`, same as the reference. Live-verified the
-      flash via two screenshots a moment apart catching the color flip.
+      regardless of `isActive`, same as the reference. `tsc`/build clean;
+      verified via direct code diff review, not a fresh live playthrough
+      this pass (see this session's own honesty note on Phase 1's
+      verification level).
 
 - [x] 45. ★★★☆☆ **[Done by Akul]** **Sharpen distant roads/white lines — currently read
       blurry far away.** Was a deliberate tradeoff, not an oversight —
