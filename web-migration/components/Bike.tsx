@@ -346,8 +346,8 @@ export function BikeMesh({
           brighter BIKE_HUB_MAT read as a tiny bright dot lost in a big dark
           tire rather than a rim; a real front wheel's hub/rim is closer to
           half the tire's radius */}
-      <Wheel z={0.7} hubR={0.19} hubThick={0.12} />
-      <Wheel z={-0.7} hubR={0.27} hubThick={0.16} />
+      <Wheel z={0.7} hubR={0.19} hubThick={0.12} spinRef={frontWheelRef} />
+      <Wheel z={-0.7} hubR={0.27} hubThick={0.16} spinRef={rearWheelRef} />
     </group>
   );
 }
