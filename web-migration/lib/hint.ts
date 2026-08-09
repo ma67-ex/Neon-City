@@ -14,6 +14,9 @@ const STEAL_RADIUS2 = 5 * 5; // slightly wider than the 4.5 mount action radius
  * Club.tsx (always mounted). Club door takes priority over the vehicle-mount
  * hint, same order as the original's `if(!clubDoorAction()) toggleVehicle()`. */
 export function computeHint(): string | null {
+  const ticket = ticketHintText();
+  if (ticket) return ticket;
+
   const building = interiorHintText();
   if (building) return building;
 
