@@ -2432,7 +2432,7 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       one-shot/looping sounds (check how horn/siren sounds, if any exist,
       are triggered elsewhere first).
 
-- [x] 45. ★★★☆☆ **Sharpen distant roads/white lines — currently read
+- [x] 45. ★★★☆☆ **[Done by Akul]** **Sharpen distant roads/white lines — currently read
       blurry far away.** Was a deliberate tradeoff, not an oversight —
       `buildTileTexture()`'s own comment confirmed the unset `minFilter`
       (defaulting to `THREE.LinearMipmapLinearFilter`, trilinear) was
