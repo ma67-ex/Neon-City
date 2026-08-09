@@ -3,6 +3,7 @@ import { vehicleState } from "@/lib/vehicleState";
 import { useHudStore, VEHICLE_NAMES, type VehicleKind } from "@/lib/hudStore";
 import { interiorHintText } from "@/lib/interiors";
 import { armoryHintText } from "@/lib/armory";
+import { ticketHintText } from "@/lib/ticketBooth";
 import { trafficPositions } from "@/components/Traffic";
 import { mountRadius } from "@/lib/mountRadius";
 import { nearestSeat } from "@/lib/clubSeats";
