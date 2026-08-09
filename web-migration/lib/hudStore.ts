@@ -129,6 +129,7 @@ interface HudState {
   toggleControlsVisible: () => void;
   setStolenCar: (v: { color: string; style: CarStyle } | null) => void;
   setHasGun: (v: boolean) => void;
+  setHasTicket: (v: boolean) => void;
   setLookSensitivity: (v: number) => void;
   vehicleName: () => string;
 }
