@@ -210,6 +210,12 @@ export function Car() {
         grounded,
         y: nextPos.y,
         movY: movement.y,
+        x: nextPos.x,
+        z: nextPos.z,
+        // chunk-seam correlation: CELL=100 in City.tsx, so a seam sits at
+        // every multiple of 100 — distance to the nearest seam on each axis
+        distToSeamX: Math.min(nextPos.x % 100, 100 - (nextPos.x % 100)),
+        distToSeamZ: Math.min(nextPos.z % 100, 100 - (nextPos.z % 100)),
       });
       if (w.__pf36.length > 2000) w.__pf36.shift();
     }
