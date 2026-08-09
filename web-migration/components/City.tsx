@@ -966,7 +966,7 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
         <Building key={i} spec={b} />
       ))}
       <Trees specs={content.trees} />
-      {content.lamp && <StreetLamp x={content.lamp.x} z={content.lamp.z} />}
+      {content.lamp && <StreetLamp x={content.lamp.x} z={content.lamp.z} rotY={content.lamp.rotY} />}
     </group>
   );
 }
