@@ -9,7 +9,9 @@ import { useHudStore } from "@/lib/hudStore";
 export const CLUB = { cx: 0, cz: -100 };
 export const CLUB_IN = { x: -50, z: -4050 };
 
-const DOOR_OUT = { x: CLUB.cx, z: CLUB.cz + 15.5 }; // matches the VENU landmark spot
+// exported so lib/ticketBooth.ts can place the booth a short walk from the
+// door without duplicating this offset
+export const DOOR_OUT = { x: CLUB.cx, z: CLUB.cz + 15.5 }; // matches the VENU landmark spot
 const DOOR_IN = { x: CLUB_IN.x, z: CLUB_IN.z + 13 };
 
 // VENU registered as lib/interiors.ts's first entry — same door points/
