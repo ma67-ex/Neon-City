@@ -2400,8 +2400,8 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       `lib/ticketBooth.ts` mirroring `armory.ts`'s one-shot-flag shape,
       `hud.hasTicket`/`setHasTicket` added, VENU's `registerInterior()` call
       passes the gate. Correct E-chain/hint priority (ticket check before
-      door check). Live-verified both directions: door blocks without
-      ticket, lets you through after picking one up.
+      door check). `tsc`/build clean, verified via direct code diff review
+      — not a fresh live playthrough this pass.
 
 - [ ] 42. ★★★★★ **Player mansion.** A large house the player can enter
       and interact with (sleep on a bed — likely a fast-forward-time or
