@@ -248,18 +248,32 @@ const BIKE_TIRE_MAT = new THREE.MeshStandardMaterial({ color: "#141414", roughne
 // BIKE_GOLD_MAT's fork tubes, actually reads as a rim against the tire.
 const BIKE_HUB_MAT = new THREE.MeshStandardMaterial({ color: "#c4cad2", metalness: 0.9, roughness: 0.25 });
 
+// tire radius (matches the cylinderGeometry args below) — pulled out to a
+// named constant so Bike()'s useFrame wheel-spin math (rotation = speed/radius)
+// can't silently drift out of sync with the actual mesh.
+export const WHEEL_RADIUS = 0.34;
+
 // a wheel + its hub — the rear one gets a much bigger hub disc to read as the
 // Verge TS's signature hubless rear end (motor housing fills the wheel
 // instead of spokes around a small hub)
-function Wheel({ z, hubR, hubThick }: { z: number; hubR: number; hubThick: number }) {
+function Wheel({ z, hubR, hubThick, spinRef }: { z: number; hubR: number; hubThick: number; spinRef?: React.RefObject<THREE.Group | null> }) {
   return (
     <group position={[0, -0.42, z]} rotation={[0, 0, Math.PI / 2]}>
-      <mesh castShadow material={BIKE_TIRE_MAT}>
-        <cylinderGeometry args={[0.34, 0.34, 0.1, 20]} />
-      </mesh>
-      <mesh material={BIKE_HUB_MAT}>
-        <cylinderGeometry args={[hubR, hubR, hubThick, 16]} />
-      </mesh>
+      {/* Inner group carries ONLY the imperative per-frame spin (rotation.y is
+          set directly by Bike()'s useFrame via spinRef — never through a JSX
+          rotation prop), kept separate from the outer group's declarative
+          rotation=[0,0,PI/2] above so a React re-render of BikeMesh can never
+          clobber the accumulated spin. Callers that don't pass spinRef (the
+          static parked decoration in PoliceStation.tsx) just get an
+          always-identity group — a visual no-op. */}
+      <group ref={spinRef}>
+        <mesh castShadow material={BIKE_TIRE_MAT}>
+          <cylinderGeometry args={[WHEEL_RADIUS, WHEEL_RADIUS, 0.1, 20]} />
+        </mesh>
+        <mesh material={BIKE_HUB_MAT}>
+          <cylinderGeometry args={[hubR, hubR, hubThick, 16]} />
+        </mesh>
+      </group>
     </group>
   );
 }
