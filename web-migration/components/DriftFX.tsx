@@ -118,10 +118,16 @@ export function DriftFX() {
     if (kind === "foot" || !DRIFT_KINDS.has(kind)) return;
     const v = vehicleState[kind];
     const slip = Math.abs(v.vLat ?? 0);
-    if (slip < SLIP_THRESHOLD) return;
+    // weather-aware boost on top of the existing slip trigger: less traction
+    // (carPhysics.ts's wetGrip) should read as looser tires kicking up smoke
+    // sooner and more often, giving the rain/snow traction-loss fix above a
+    // visible cue. wetGrip is 1 dry (boost=1, no-op) down to 0.5 rain / 0.3
+    // snow (weatherState.ts), so this stays a no-op in clear/sunny/overcast/fog.
+    const weatherBoost = THREE.MathUtils.clamp(2 - weatherState.wetGrip, 1, 1.7); // 1 dry, ~1.5 rain, ~1.7 snow
+    if (slip < SLIP_THRESHOLD / weatherBoost) return;
 
     const dims = DIMS[kind] ?? { halfLen: 2, halfW: 0.85 };
-    const rate = THREE.MathUtils.clamp(0.09 - slip * 0.004, 0.02, 0.09);
+    const rate = THREE.MathUtils.clamp((0.09 - slip * 0.004) / weatherBoost, 0.02, 0.09);
     spawnAcc.current += dt;
     while (spawnAcc.current > rate) {
       spawnAcc.current -= rate;
