@@ -13,7 +13,7 @@ import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { WATER_LEVEL } from "@/components/Water";
-import { pierPush, LAND_EDGE_X } from "@/lib/marina";
+import { pierPush, clampToWater, LAND_EDGE_X } from "@/lib/marina";
 import { BoatMirrors } from "@/components/BoatMirrors";
 
 // A hull has no floor to snap to, so unlike Car.tsx this doesn't use Rapier's
