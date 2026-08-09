@@ -2525,19 +2525,20 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       fireQueue + `TankCombat.tsx` system as-is — that part doesn't need
       new code, just more tanks feeding into it.
 
-- [ ] 52. ★★☆☆☆ **Streetlights: move off intersections, hover over the
-      road from the side — REVISES this session's streetlight work.**
-      This session added one `StreetLamp` per chunk at its own NW corner
-      intersection (`components/City.tsx`, commit `8a1d3ea`). Abdullah
-      wants them OFF the intersections entirely — placed along the SIDE
-      of the road with an arm that extends out and hangs OVER the road
-      surface (a real street-lamp silhouette), not standing in the middle
-      of a 4-way crossing. The existing `StreetLamp` component (pole +
-      arm + emissive head + `pointLight`) is reusable almost as-is — this
-      is a placement/positioning change (move from chunk corner to a
-      point along one road edge, rotate the arm to reach over the
-      asphalt) more than a rebuild. Straightforward once picked up;
-      lowest-effort item on this list.
+- [x] 52. ★★☆☆☆ **[Done by Akul]** **Streetlights: move off intersections, hover over the
+      road from the side.** Fixed. Correction to the original note:
+      `StreetLamp` had NO rotation prop at all (arm only ever extended in
+      local +X) — a real new addition, not "reusable almost as-is."
+      Added a `rotY` prop, moved placement from the chunk's shared NW-corner
+      intersection to a per-chunk sidewalk band beside the west road edge
+      (with explicit reasoning for why the new placement can never
+      double-render at a shared corner the way the old one could), and
+      increased `LAMP_ARM` from 1.1 to 9 so the head actually clears out
+      over the road (`ROAD_W=20`) instead of barely reaching an
+      intersection center. `tsc`/build clean, verified via direct code diff
+      review — not a fresh deliberate live positioning check this pass
+      (lamps were incidentally visible in later Phase 2 screenshots, but
+      that wasn't a targeted verification of this fix).
 
 **Process notes:**
 - Four items are hard-blocked on Akul supplying reference images before any
