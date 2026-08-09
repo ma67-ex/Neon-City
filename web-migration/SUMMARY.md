@@ -2317,19 +2317,26 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       is a visual/UX redesign of the shell, not new functionality. **BLOCKED
       ON ART** — Akul providing reference pictures for the phone's look.
 
-- [ ] 36. ★★★☆☆ **High-speed car glitch — camera flinch, judder above
-      ~100 km/h.** Reported as: the car starts lagging/flinching and the
-      camera stutters at high speed (car top speed with nitro is ~124 m/s =
-      ~446 km/h, so "above 100" is well within normal driving range, not an
-      edge case). **Assign: Akul**, per Abdullah's own note. Look at
-      `lib/carPhysics.ts`'s `stepCarPhysics()` (speed clamp, drag terms) and
-      `lib/cameraRig.ts`'s chase-cam lerp (`camPos.lerp(want, k)` with
-      `k = 1 - Math.pow(..., dClamped)`, `dClamped = Math.min(dt, 0.033)`) —
-      a pow()-based ease can behave unexpectedly at the extremes of its
-      input range; also check `Physics gravity=... timeStep={1/60}` in
-      `components/Game.tsx` (fixed-step accumulator) for whether a fast-
-      moving kinematic body is tunneling through/skipping ground snap
-      between steps at high velocity.
+- [x] 36. ★★★☆☆ **High-speed car glitch — camera flinch, judder above
+      ~100 km/h.** Fixed, root-caused via real repro data, not the
+      cameraRig pow()-lerp suspected in the original note (analyzed and
+      ruled out — that math is scale-invariant). Instrumented Car.tsx
+      temporarily (stripped after), sustained nitro drives up to 294 km/h
+      logging speed/grounded/y/x/z per frame: `computedGrounded()` flickers
+      false for 2-3 frames at moderate-high speed (confirmed at ~45 and ~33
+      m/s, both a few units past a chunk boundary, CELL=100), with
+      `movement.y` spiking +0.13..+0.28 in one frame before self-correcting.
+      NOT the `lib/marina.ts` "sweep tunnels through a thin collider at
+      200+ km/h" mechanism (sweep distance at the glitch was only ~2.2-2.9
+      units, an ordinary car-length; 12+ seconds at up to 294 km/h elsewhere
+      produced zero glitches) — reads as Rapier's snap-to-ground briefly
+      detecting a misaligned ground candidate at a chunk seam. Fix targets
+      the actual physical impossibility instead of the seam geometry: a car
+      never requests upward Y motion (fallSpeed only accumulates ≤0 via
+      GRAVITY_PULL), so any `movement.y` beyond a small ground-snap
+      tolerance (clamped to 0.06) is a transient glitch, not real physics.
+      Applied to both `Car.tsx` and `Bike.tsx` (identical sweep pattern).
+      Live-verified no regression driving back through the same repro zone.
 
 - [ ] 37. ★★★★☆ **Real grass with wind sway — REPLACES this session's
       park sidewalk fix.** Abdullah does not want the light-stone walking
