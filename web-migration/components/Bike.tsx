@@ -180,6 +180,23 @@ export function Bike() {
       if (hitSlow !== null) bike.current.speed *= hitSlow;
     }
 
+    // wheel spin — rolls proportional to true forward speed (bike.current.speed,
+    // not the ground-speed-with-drift hypot used for the HUD), around each
+    // wheel's actual rolling axis. Sign note: Wheel()'s outer group has a fixed
+    // rotation=[0,0,Math.PI/2] that reorients the tire cylinder's own axis
+    // (local Y) onto the true axle direction — but that same Rz(+90°) maps the
+    // inner spin group's +Y axis onto the axle's -X direction (not +X), so a
+    // NEGATIVE rotation.y on the inner group is what produces a right-hand-
+    // positive rotation about the true +X axle. Verified numerically (not just
+    // by hand) with a standalone three.js matrix check: a material point fixed
+    // to the tire rim moves toward +Z — the bike's forward axis — as spin goes
+    // negative, matching the no-slip rolling condition for forward motion.
+    // Negative bike.current.speed (reverse) flips the sign automatically, so
+    // the wheels correctly spin backward when reversing.
+    wheelRotRef.current += -(bike.current.speed / WHEEL_RADIUS) * d;
+    if (frontWheelRef.current) frontWheelRef.current.rotation.y = wheelRotRef.current;
+    if (rearWheelRef.current) rearWheelRef.current.rotation.y = wheelRotRef.current;
+
     // lean into the turn — same formula as the original's isBike branch
     // (rotation.z = -steer * speed-scaled * 0.45), purely visual
     const targetLean = -steer * clamp(Math.abs(bike.current.speed) / 25, 0, 1) * 0.45;
