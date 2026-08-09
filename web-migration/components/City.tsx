@@ -931,15 +931,24 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
       }
     }
 
-    // one streetlamp per chunk, at its own NW corner intersection — every
-    // corner is shared by up to 4 chunks, so only the one that "owns" it
-    // (its own corner, not a neighbour's) ever renders one there, or every
-    // intersection between non-exempt chunks would get 1-4 stacked lamps.
+    // one streetlamp per chunk, planted on the sidewalk beside the chunk's
+    // west road edge (not at the NW corner intersection like before — that
+    // put the pole standing in the middle of a 4-way crossing). The road
+    // corridor along this edge is centred on x = cx-CELL/2 and is ROAD_W
+    // wide, i.e. it spans cx-60..cx-40; buildings/trees stay clear back to
+    // `half`=34, leaving a ~6-unit sidewalk band from cx-40 to cx-34. The
+    // pole sits in that band (cx-37) and the arm (rotY=PI, aiming -X) swings
+    // out over the road itself so the head hangs above the asphalt, not the
+    // sidewalk. z is offset to the chunk's own midpoint along that edge
+    // (cz, not cz-CELL/2) specifically so it's never at a shared corner —
+    // each chunk computes this off its own cx/cz, so unlike the old corner
+    // placement there's nothing here two neighbouring chunks could ever both
+    // land on, no separate ownership check needed.
     // Streets otherwise had zero lighting infrastructure at all — pitch
     // black away from headlights/window glow once night fell (see
     // components/SkyCycle.tsx's day/night cycle) — the actual gap behind
     // "current streets need a visual pass."
-    const lamp = { x: cx - CELL / 2, z: cz - CELL / 2 };
+    const lamp = { x: cx - 37, z: cz, rotY: Math.PI };
 
     return { buildings, trees, isPark, lamp };
     // eslint-disable-next-line react-hooks/exhaustive-deps
