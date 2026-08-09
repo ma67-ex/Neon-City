@@ -164,6 +164,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   controlsVisible: true,
   stolenCar: null,
   hasGun: false,
+  hasTicket: false,
   lookSensitivity: 1,
   setHud: (speedKmh, grounded) => set({ speedKmh, grounded }),
   // no-ops while on foot — B is this build's own quick-switch between owned
