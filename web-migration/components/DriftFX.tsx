@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useHudStore, type VehicleKind } from "@/lib/hudStore";
 import { vehicleState } from "@/lib/vehicleState";
+import { weatherState } from "@/lib/weatherState";
 
 // Tire smoke on a hard slide/handbrake turn — nothing produced any smoke
 // during a drift or donut before this (grep for "drift"/"skid" across the
