@@ -69,6 +69,10 @@ export function interiorDoorAction(): boolean {
     const dx = worldState.px - b.doorOut.x;
     const dz = worldState.pz - b.doorOut.z;
     if (dx * dx + dz * dz < b.enterRadius2) {
+      if (b.gate && !b.gate()) {
+        hud.showMsg(b.gateMsg ?? "You can't enter yet");
+        return true;
+      }
       outPos = { x: worldState.px, z: worldState.pz + 1.5, h: worldState.heading };
       hud.setInClub(true);
       hud.setActiveBuildingId(b.id);
