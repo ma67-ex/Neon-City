@@ -63,8 +63,8 @@ export function PatrolBoat() {
     pos.current.x += dx;
     pos.current.z += dz;
     // keep the hull in water — mirror-image backstop of clampFromWater (which
-    // stops LAND vehicles crossing onto water); see lib/marina.ts. Boat.tsx was
-    // missing this entirely, unconstrained beyond the dock-only pierPush below.
+    // stops LAND vehicles crossing onto water); see lib/marina.ts. This boat had
+    // no land clamp at all before, unconstrained beyond the dock-only pierPush below.
     clampToWater(pos.current, 5);
     const pushed = pierPush(pos.current.x, pos.current.z, 2.0);
     pos.current.x = pushed.x;
