@@ -2361,7 +2361,10 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       in `wetGrip`, both exactly 1/no-op when dry) extending the effect
       into acceleration and every deceleration term. Also tied
       `components/DriftFX.tsx`'s existing slip-triggered smoke to a
-      weather-aware boost so the traction loss has a visible cue.
+      weather-aware boost so the traction loss has a visible cue. `tsc`/
+      build clean, verified via direct code diff review — not a fresh
+      live playthrough this pass (the original agent's own attempt to
+      force weather for an A/B test wasn't captured as a confirmed result).
 
 - [ ] 39. ★★★★☆ **Better cockpit: console/armrest + visible driver
       hands on the wheel.** `components/CarInterior.tsx` already has a
