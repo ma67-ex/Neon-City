@@ -139,6 +139,17 @@ export function PatrolBoat() {
         <sphereGeometry args={[0.11, 8, 8]} />
         <meshBasicMaterial color="#ff2020" />
       </mesh>
+      {/* flashing light bar on the cabin roof — same red/blue pair as
+          PoliceCar.tsx/PoliceJeep.tsx, wired via lightRefs and flipped
+          unconditionally in useFrame (parked or driven) */}
+      <mesh position={[-0.22, hullSize.y / 2 + 0.84, -0.6]}>
+        <boxGeometry args={[0.22, 0.08, 0.14]} />
+        <meshBasicMaterial ref={(el) => (lightRefs.current[0] = el)} color="#ff2020" />
+      </mesh>
+      <mesh position={[0.22, hullSize.y / 2 + 0.84, -0.6]}>
+        <boxGeometry args={[0.22, 0.08, 0.14]} />
+        <meshBasicMaterial ref={(el) => (lightRefs.current[1] = el)} color="#2040ff" />
+      </mesh>
     </RigidBody>
   );
 }
