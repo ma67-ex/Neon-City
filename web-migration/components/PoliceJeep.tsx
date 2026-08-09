@@ -22,11 +22,20 @@ import { PoliceJeepMesh } from "@/components/ParkedPoliceJeep";
 import { QueryFilterFlags, type KinematicCharacterController } from "@dimforge/rapier3d-compat";
 
 const GRAVITY_PULL = -12;
-// PoliceJeepMesh's own root sits AT ground level already (its wheels bottom
-// out at local y=0 — see ParkedPoliceJeep.tsx's <group position={[0,0.42,0]}>
-// wrapping wheels at y=-0.42), unlike SupercarBody's RIDE_HEIGHT=0.98. No
-// drop needed here.
-const RIDE_HEIGHT = 0;
+// FIXED (SUMMARY.md #50): the old comment here was wrong — PoliceJeepMesh's
+// wheels do NOT bottom out at local y=0. ParkedPoliceJeep.tsx wraps
+// everything in <group position={[0,0.42,0]}>, and the wheel mesh sits at
+// LOCAL y=-0.42 inside that group, so its absolute axle height is
+// 0.42 + (-0.42) = 0 — the group offset and the wheel's own drop cancel out.
+// But the wheel is a cylinder of radius 0.42 around that axle, so the tyre
+// CONTACT PATCH (the actual bottom) is at absolute y = 0 - 0.42 = -0.42,
+// not 0. With RIDE_HEIGHT=0 the body origin sat at ground level, so the
+// wheel bottom rendered 0.42m under the road. Same fix as Bike.tsx's
+// BIKE_RIDE_HEIGHT: raise the body origin by the wheel radius so the
+// contact patch lands exactly on the ground, and pull the collider down to
+// match (see CuboidCollider's position below).
+export const WHEEL_RADIUS = 0.42;
+const RIDE_HEIGHT = WHEEL_RADIUS;
 
 // The airport's gate-guard jeep (components/Airport.tsx's GateGuardPost),
 // made a real drivable rig instead of the inert decoration it used to be —
@@ -185,7 +194,7 @@ export function PoliceJeep() {
         save?.z ?? vehicleState.policeJeep.z,
       ]}
     >
-      <CuboidCollider ref={colliderRef} args={[carBox.x / 2, carBox.y / 2, carBox.z / 2]} position={[0, carBox.y / 2, 0]} />
+      <CuboidCollider ref={colliderRef} args={[carBox.x / 2, carBox.y / 2, carBox.z / 2]} position={[0, carBox.y / 2 - RIDE_HEIGHT, 0]} />
       <PoliceJeepMesh lightRefs={lightRefs} />
     </RigidBody>
   );

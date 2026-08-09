@@ -2234,16 +2234,73 @@ the compound was and what its own set dressing already promised.
       drawing decorative copies in the same slots would double-render them.
       Got nitro too, same `lib/nitro.ts` rig as every other vehicle.
 
-- [ ] 19. **[Assigned: Akul]** **Nothing reacts to the player firing inside the compound** — the
-      gate sign reads RESTRICTED AREA / DEADLY FORCE AUTHORIZED, but
-      soldiers and guard towers have no alert state, no return fire, and no
-      dispatch. **Not started** — was mid-scoping (a shared alert singleton)
-      when this session ended; no file exists for it yet.
+- [x] 19. **[Done by Abdullah, 2026-08-09]** **Nothing reacts to the player firing inside
+      the compound.** Built the shared alert singleton this item was
+      mid-scoping toward: `lib/baseAlert.ts` (`alertState`/`triggerAlert()`/
+      `tickAlert()`, same plain-mutable-singleton pattern as
+      `lib/tankShell.ts`'s `fireQueue`). Wired into the ONE place both the
+      tank cannon and the handheld gun's shots actually funnel through —
+      `components/TankCombat.tsx`'s fire-queue drain — checking
+      `baseGroundY(req.x, req.z) !== null` (`lib/militaryBase.ts`, already
+      existed) per shot and calling `triggerAlert()`. New
+      `components/BaseDefense.tsx` (mounted in `Game.tsx` next to
+      `TankCombat`) reacts to it: all 4 corner guard towers
+      (`TOWER_POS`) return fire at the player while alerted — tracer +
+      muzzle-flash light pulse + gun-crack SFX + a small spark/dust burst at
+      the player's feet (`lib/debris.ts`'s existing pool), same
+      pooled-array-of-plain-objects idiom `TankCombat.tsx`'s own shells use.
+      **Return fire is cosmetic, not damage** — audited the codebase first
+      (`lib/pedestrianHit.ts`, `lib/vehicleDestroy.ts`, `hudStore`) and
+      confirmed there is no player-health system anywhere to hook into;
+      fabricating one wasn't asked for and is a separate, much bigger
+      feature. **"Dispatch" (patrol soldiers converging on the player) is
+      NOT done** — `PatrolSoldier` runs on `AirportLife.tsx`'s
+      `usePathFollower` with a fixed route and no retarget hook; live-routing
+      it toward the player is a bigger change on its own, left for later.
+      `tsc --noEmit` and `eslint` clean on every touched/new file.
+      **Live-verified end-to-end**, via 3 new debug hooks added to
+      `components/Weather.tsx` (`__ncdFire`→`lib/tankShell.ts`'s
+      `requestFire`, `__ncdAlert`→`lib/baseAlert.ts`'s `alertState`,
+      `__ncdQueue`→`fireQueue`, plus `__ncdBaseY`→`baseGroundY`,
+      `__ncdHud`→`useHudStore` — same debug-global convention Weather.tsx
+      already used for `__ncdTp`/`__ncdVeh`) after mounting the tank via a
+      scripted key-press proved too flaky to use directly. Confirmed a full
+      clean cycle right after a fresh dev-server restart: fired a shot
+      inside FORT NEON's bounds (`__ncdBaseY` confirmed the test point reads
+      inside) → `fireQueue` filled then drained by `TankCombat.tsx`'s own
+      frame loop → `alertState.alerted` flipped `true` → decayed back to
+      `false` on its own ~12s later, exactly per `ALERT_DURATION`. Retesting
+      afterward (without a fresh restart) got flaky — same category of
+      Turbopack dev-mode module-duplication bug already hit and fixed by a
+      full restart earlier this same session (not a code defect; a stale
+      HMR chunk held a second, disconnected `alertState` instance). Did NOT
+      get a clean visual on a tower's tracer/muzzle-flash — the on-foot
+      camera kept pitching to look straight at the sky after these
+      teleports, a recurring harness quirk seen elsewhere this session
+      (interior-camera pitch after building teleports), not something this
+      pass tried to fix. The engine-level proof above (queue drain → alert
+      flip → decay) is a real functional confirmation of #19's actual
+      mechanism, just without a matching screenshot of tracers in flight.
 
-- [ ] 20. **[Assigned: Akul]** **The base has no audio identity** — no klaxon, wind, or generator
-      hum. The compound is silent apart from engine and tank-fire SFX, which
-      makes it feel less distinct than it looks. Same idea as the club's own
-      sonic signature. **Not started.**
+- [x] 20. **[Done by Abdullah, 2026-08-09]** **The base has no audio identity.** Added
+      wind (looping filtered-noise buffer) and generator hum (two
+      closely-detuned low sawtooth oscillators) to `lib/audio.ts`'s
+      `AudioRig`, both persistent-but-silent nodes gated every frame by a new
+      `updateBaseAudio(inBase: boolean)` — same explicit-gate requirement
+      `updateEngineAudio`'s own comment already documents (leave the
+      compound without the gate and the drone would outlive it). Wired from
+      `components/AudioEngine.tsx`'s existing per-frame loop via
+      `baseGroundY(worldState.px, worldState.pz) !== null`. Klaxon
+      (`triggerKlaxon()`, a 3-sweep two-tone alarm) fires once on the
+      calm→alerted transition as part of #19's `triggerAlert()` — ties the
+      two items together rather than an unrelated ambient loop, since a
+      klaxon reads as an alarm response, not background atmosphere.
+      `tsc`/`eslint` clean. Live-verified that `updateBaseAudio`'s gate
+      condition itself is correct (`baseGroundY` check, same one #19's test
+      confirmed reads correctly inside FORT NEON) and that base ambience
+      mounts/plays without console errors — not a confirmed listen-through
+      of the actual wind/hum/klaxon audio output this session (no way to
+      hear generated audio through this harness).
 
 - [ ] 21. **[Assigned: Akul]** **The gate barrier arm is inert dressing** — deliberate as of
       Milestone 25 (the tank has to be able to drive out, so the gap has no
@@ -2584,3 +2641,52 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
   there's nothing to guard yet.
 - Communication loop from the previous batch still applies unless Abdullah
   says otherwise: heads-up before pushing, confirmation after.
+
+## Building facade/interior redesigns (2026-08-09) — Assign: Akul
+
+11 items, all "show it a real photo, it copies the look" jobs like the
+previous batch's #23 — Abdullah supplied one real-world reference photo set
+(exterior + interior) per building, already written up in full detail in
+`design-refs/*.md` (one file per building, same directory as this file).
+Read the matching `design-refs/<id>.md` before starting each one — it has
+the full visual breakdown plus specific build notes (which existing
+`category` furniture set to replace, scale/tone flags, etc.) already worked
+out, don't re-derive from scratch.
+
+All 12 buildings are `lib/interiorSpots.ts`'s `BUILDING_SPOTS` array,
+rendered generically by `components/EnterableBuildings.tsx`. The pattern to
+follow for each is the one already shipped for `pizzeria` this session
+(`PizzeriaEntrance` in that file) — a bespoke exterior component swapped in
+for that one building id, generic `BuildingEntrance`/interior dressing left
+alone for everyone else until their turn comes up. Placement (off-road,
+fronting the sidewalk via `edgeZ()`) is already fixed for all 12 and doesn't
+need touching.
+
+- [ ] 53. ★★★★☆ **Hospital facade/interior — MERCY GENERAL.** `design-refs/hospital.md`. Two-mass building (tall tan-brick tower + lower white entrance wing), separate red-lettered EMERGENCY wing, flat cantilevered glass canopy over a circular drive. Not just a recolor of the existing single box — needs the two-mass massing.
+- [ ] 54. ★★★☆☆ **Corner store facade/interior — QUIK-STOP.** `design-refs/cornerStore.md`. Reference is an upscale bistro/lounge (brick + black storefront + white serif sign outside, dark-wood booth seating + brass sconces + gallery wall inside), not a bodega — build to the photo, flag the name mismatch to Abdullah if it still bugs you. Needs a new furniture treatment (booths/tables), not the current shelf-rack `category`.
+- [ ] 55. ★★★☆☆ **Gym facade/interior — IRON YARD GYM.** `design-refs/gym.md`. Exterior: dark panel tower with glowing teal "GYM SPACE" channel letters + angular teal-lit glass corner entrance. Interior: black-box weight room, full mirror wall, big blackletter "THE IRON OFFICE" wall text, chrome dumbbell rack. Two different photos of the same building — don't cross-wire which reference goes where.
+- [ ] 56. ★★★★★ **Bank facade/interior — FIRST NEON BANK.** `design-refs/bank.md`. Heaviest build of the batch: neoclassical stone facade (colonnade + pediment + statue niches, Bank-of-England style) and a grand banking-hall interior (marble columns, coffered ceiling, teller counters, central podium desk). Keep column/statue detail at the game's existing low-poly level (see `POLICE HARBOR`/`AUTO YARD` for the target detail ceiling), don't over-build. Interior room is bigger than the current `roomW`/`roomD` comfortably fits — may need to bump those for this entry.
+- [ ] 57. ★★★☆☆ **Electronics facade/interior — CIRCUIT CITY.** `design-refs/electronics.md`. Big tone shift: reference is pale-stone/minimal/upscale (Smeg-flagship-style), current placeholder is dark neon-cyberpunk. Confirm with Abdullah whether to keep any neon-cyan accent or go fully to the calm/minimal reference look before finalizing. Interior: warm wood showroom with device shelf niches + wall screen + display pedestals, replacing the shelf-rack `category`.
+- [ ] 58. ★★★☆☆ **Barber facade/interior — CLIP JOINT.** `design-refs/barber.md`. Exterior: dark-wood Victorian storefront, cream "BARBERSHOP" sign board, barber-pole-stripe pilasters — full replacement of the current light-gray/pink-neon placeholder. Interior: black/white marble floor, barber chairs facing round LED-ring mirrors, geometric white LED ceiling strips.
+- [ ] 59. ★★★★☆ **Pawn shop facade/interior — QUICK CASH PAWN.** `design-refs/pawnShop.md`. Wild-West wood storefront (weathered plank siding, "BEN'S LOAN PAWNSHOP" carved sign, longhorn skull, hanging lanterns, porch clutter — biggest style swing in the batch, confirm with Abdullah if that's really the intended tone before investing full build time). Interior: dense/cluttered on purpose — glass counters + guitar-lined slat wall + bright flat lighting + novelty bobblehead props. Don't over-clean it, the mess is the brief.
+- [ ] 60. ★★★★☆ **Office tower facade/interior — MERIDIAN TOWER.** `design-refs/officeTower.md`. Exterior reference was revised mid-collection to a true high-rise (30+ story glass tower, repeating orange vertical mullion stripes, dark-glass secondary wing, white-and-red podium base) specifically to match the existing h=40 scale — no resize needed, materials/detailing pass only. Interior stays the original executive-office reference (walnut wood wall + slat accent wall + black desk + brass pendant light) — needs a new furniture `category` (e.g. `"office"`), current `"counter"` reads wrong.
+- [ ] 61. ★★★★☆ **Cinema facade/interior — NEON CINEMA.** `design-refs/cinema.md`. Exterior: classic marquee (oval bulb-ringed "Cinema" sign badges, changeable-letter reader-board, warm glowing facade). Reference is red-dominant; current placeholder is purple — confirm with Abdullah whether to switch to red or keep purple applied to the marquee bulbs/reader-board instead. Interior already uses the closest-matching `category: "seats"` of any building in the set — main gap is the faceted red-lit triangular dome ceiling, which is missing entirely and is the reference's standout feature.
+- [ ] 62. ★★☆☆☆ **Laundromat facade/interior — SUDS LAUNDROMAT.** `design-refs/laundromat.md`. Smallest/plainest build in the batch, deliberately ordinary strip-mall look (white/blue "LAUNDROMAT" sign, brick base, bubble-decal glass) — don't over-embellish relative to the source; tone down the "premium entrance" canopy treatment other buildings got if it looks out of place here. Interior: steel washer/dryer row + signature blue-LED oval ceiling ring above them (prioritize that ring if scope is tight).
+- [x] 63. **[Decision, no build]** **Bar — THE RUSTBUCKET stays generic.** Abdullah: VENU already covers nightlife/bar, so `bar` doesn't get a design pass — leave it on the existing generic `BuildingEntrance`/interior. Don't send or expect a reference photo for this one.
+
+**Process notes for this batch:**
+- Reference photos live only as written descriptions in `design-refs/*.md`
+  (11 files, one per building minus `bar`) — Abdullah pasted images inline
+  in chat, there's no raw image file on disk to hand off, the `.md` write-up
+  is the actual spec. Read it fully before starting; it already flags scale/
+  tone mismatches and which furniture `category` needs replacing per building.
+- Verification loop: once Akul finishes a building, it needs to be checked
+  against its `design-refs/<id>.md` before Abdullah sees it or before
+  pushing — same "manager verifies against the reference" step Abdullah
+  asked for earlier in this session, just running against the written specs
+  instead of the original images. Flag anything that doesn't match rather
+  than shipping close-enough.
+- A few items above have an open confirm-with-Abdullah flag baked into their
+  description (#57 neon-vs-minimal tone, #59 Wild-West tone check, #61
+  red-vs-purple) — surface those before sinking full build time in, same as
+  the BLOCKED-ON-ART items elsewhere in this doc.

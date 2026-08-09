@@ -4,6 +4,8 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { fireQueue } from "@/lib/tankShell";
+import { baseGroundY } from "@/lib/militaryBase";
+import { triggerAlert } from "@/lib/baseAlert";
 import { spawnDebris } from "@/lib/debris";
 import { vehicleState } from "@/lib/vehicleState";
 import { requestCarDestroy } from "@/lib/vehicleDestroy";
@@ -132,6 +134,13 @@ export function TankCombat() {
     // drain the fire queue into free shell slots
     while (fireQueue.length > 0) {
       const req = fireQueue.shift()!;
+      // SUMMARY.md #19: this is the one place both the tank cannon and the
+      // handheld gun's shots actually pass through (lib/tankShell.ts's
+      // fireQueue is shared by both — see Tank.tsx and Player.tsx's own
+      // requestFire calls), so it's the single safe point to detect "player
+      // fired inside FORT NEON" without duplicating that check at every
+      // weapon's own call site.
+      if (baseGroundY(req.x, req.z) !== null) triggerAlert();
       const s = shells.current.find((c) => !c.active);
       if (!s) break;
       s.active = true;

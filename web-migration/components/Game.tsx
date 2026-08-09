@@ -70,6 +70,7 @@ import { Highway } from "@/components/Highway";
 import { MilitaryBase, OLIVE_HELI_MAT } from "@/components/MilitaryBase";
 import { Tank } from "@/components/Tank";
 import { TankCombat } from "@/components/TankCombat";
+import { BaseDefense } from "@/components/BaseDefense";
 
 const CYCLABLE = new Set(["car", "bike", "boat"]);
 
@@ -189,6 +190,7 @@ export default function Game() {
           <DriftFX />
           <Debris />
           <TankCombat />
+          <BaseDefense />
           <WaypointTracker />
           {/* fixed step instead of the default "vary" (tied to render frame
               delta) — a variable step feeds a jittery dt into Rapier every

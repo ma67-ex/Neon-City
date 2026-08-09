@@ -11,6 +11,8 @@ interface AudioRig {
   osc2: OscillatorNode;
   nitroGain: GainNode;
   nFilt: BiquadFilterNode;
+  windGain: GainNode;
+  humGain: GainNode;
 }
 
 let audio: AudioRig | null = null;
@@ -58,7 +60,51 @@ export function initAudio() {
     nOsc.start();
     nOsc2.start();
 
-    audio = { ctx, gain, osc, osc2, nitroGain, nFilt };
+    // FORT NEON base ambience (SUMMARY.md #20 — "no klaxon, wind, or generator
+    // hum"). Persistent, always-running, silent-by-default nodes gated per-frame
+    // by updateBaseAudio() the same way the engine rig above is gated by
+    // updateEngineAudio() — see that function's own comment on why the gate has
+    // to be explicit (park/leave a scene, the drone shouldn't outlive it).
+    // WIND: looping filtered-noise buffer, not an oscillator — matches the real
+    // texture of wind better than a tone would (same noise-buffer technique
+    // scheduleHat() below uses for the hi-hat, just looped and sustained).
+    const windBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const windData = windBuf.getChannelData(0);
+    for (let i = 0; i < windData.length; i++) windData[i] = Math.random() * 2 - 1;
+    const windSrc = ctx.createBufferSource();
+    windSrc.buffer = windBuf;
+    windSrc.loop = true;
+    const windFilt = ctx.createBiquadFilter();
+    windFilt.type = "lowpass";
+    windFilt.frequency.value = 500;
+    const windGain = ctx.createGain();
+    windGain.gain.value = 0;
+    windSrc.connect(windFilt);
+    windFilt.connect(windGain);
+    windGain.connect(ctx.destination);
+    windSrc.start();
+
+    // GENERATOR HUM: low sustained drone, two closely-detuned oscillators for
+    // beating/texture instead of one flat tone.
+    const humOsc = ctx.createOscillator();
+    humOsc.type = "sawtooth";
+    humOsc.frequency.value = 55;
+    const humOsc2 = ctx.createOscillator();
+    humOsc2.type = "sawtooth";
+    humOsc2.frequency.value = 55.6;
+    const humFilt = ctx.createBiquadFilter();
+    humFilt.type = "lowpass";
+    humFilt.frequency.value = 220;
+    const humGain = ctx.createGain();
+    humGain.gain.value = 0;
+    humOsc.connect(humFilt);
+    humOsc2.connect(humFilt);
+    humFilt.connect(humGain);
+    humGain.connect(ctx.destination);
+    humOsc.start();
+    humOsc2.start();
+
+    audio = { ctx, gain, osc, osc2, nitroGain, nFilt, windGain, humGain };
     if (muted) ctx.suspend();
   } catch {
     // Web Audio unavailable — game stays fully playable without sound
@@ -118,6 +164,71 @@ export function updateEngineAudio(speedKmh: number, driving: boolean, nitroActiv
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
+}
+
+/** Call every frame with whether the player is currently inside FORT NEON
+ * (lib/militaryBase.ts's baseGroundY() !== null) — same explicit-gate
+ * requirement as updateEngineAudio's `driving` param, for the same reason:
+ * leaving the compound without this being false would leave the wind/hum
+ * drone playing over the rest of the city forever. */
+export function updateBaseAudio(inBase: boolean) {
+  if (!audio) return;
+  audio.windGain.gain.setTargetAtTime(!muted && inBase ? 0.035 : 0, audio.ctx.currentTime, 0.6);
+  audio.humGain.gain.setTargetAtTime(!muted && inBase ? 0.05 : 0, audio.ctx.currentTime, 0.6);
+}
+
+/** One-shot two-tone alarm sweep — call once per alert transition (going
+ * from calm to alerted), not every frame. Standalone short-lived oscillator/
+ * gain pair, same one-shot pattern as scheduleTabla/scheduleTap below rather
+ * than a persistent rig node, since this only ever fires occasionally. */
+export function triggerKlaxon() {
+  if (!audio || muted) return;
+  const ctx = audio.ctx;
+  const t0 = ctx.currentTime;
+  const o = ctx.createOscillator();
+  o.type = "sawtooth";
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  o.connect(g);
+  g.connect(ctx.destination);
+  o.start(t0);
+  // 3 rising/falling sweeps, classic klaxon whoop
+  for (let i = 0; i < 3; i++) {
+    const t = t0 + i * 0.7;
+    o.frequency.setValueAtTime(320, t);
+    o.frequency.linearRampToValueAtTime(500, t + 0.35);
+    g.gain.setValueAtTime(0.16, t);
+    g.gain.setValueAtTime(0.16, t + 0.32);
+    g.gain.linearRampToValueAtTime(0, t + 0.35);
+  }
+  o.stop(t0 + 2.2);
+  o.onended = () => g.disconnect();
+}
+
+/** One-shot rifle crack — filtered noise burst, same buffer-noise technique
+ * scheduleHat() uses for the hi-hat, just harsher/louder/shorter. Used by
+ * components/BaseDefense.tsx for guard-tower return fire. */
+export function triggerGunCrack() {
+  if (!audio || muted) return;
+  const ctx = audio.ctx;
+  const t0 = ctx.currentTime;
+  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const n = ctx.createBufferSource();
+  n.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 1800;
+  bp.Q.value = 0.6;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.3, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
+  n.connect(bp);
+  bp.connect(g);
+  g.connect(ctx.destination);
+  n.start(t0);
+  n.stop(t0 + 0.1);
 }
 
 // ---------- club music (VENU) ----------

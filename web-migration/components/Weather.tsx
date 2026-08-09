@@ -10,9 +10,22 @@ import { coatScene, weatherCoatUniforms } from "@/lib/weatherCoat";
 import { requestPlayerTeleport } from "@/lib/playerTeleport";
 import { vehicleState } from "@/lib/vehicleState";
 import { getSunnyEnvMap } from "@/lib/skyEnv";
+import { requestFire, fireQueue } from "@/lib/tankShell";
+import { alertState } from "@/lib/baseAlert";
+import { baseGroundY } from "@/lib/militaryBase";
 if (typeof window !== "undefined") {
   (window as unknown as { __ncdTp: typeof requestPlayerTeleport }).__ncdTp = requestPlayerTeleport;
   (window as unknown as { __ncdVeh: typeof vehicleState }).__ncdVeh = vehicleState;
+  // Debug-only additions (2026-08-09), same convention as the two above —
+  // lets a scripted test force hud.active directly (skips the flaky
+  // proximity+keypress mount flow) and fire a shot from an arbitrary world
+  // position (skips having to actually be in a vehicle) for verifying
+  // lib/baseAlert.ts's alert system without driving to FORT NEON.
+  (window as unknown as { __ncdHud: typeof useHudStore }).__ncdHud = useHudStore;
+  (window as unknown as { __ncdFire: typeof requestFire }).__ncdFire = requestFire;
+  (window as unknown as { __ncdAlert: typeof alertState }).__ncdAlert = alertState;
+  (window as unknown as { __ncdQueue: typeof fireQueue }).__ncdQueue = fireQueue;
+  (window as unknown as { __ncdBaseY: typeof baseGroundY }).__ncdBaseY = baseGroundY;
 }
 
 // Rendered after <SkyCycle/> in Game.tsx so this useFrame runs after its
