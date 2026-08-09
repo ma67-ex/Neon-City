@@ -165,7 +165,7 @@ export function Bike() {
     // stepped through the gap, put it back on the surface here rather than let
     // gravity integrate it to -65,000. See lib/fallGuard.ts.
     if (fellOutOfWorld(nextPos.y, nextPos.x)) {
-      body.setTranslation({ x: nextPos.x, y: 1, z: nextPos.z }, true); // the bike sits at y=1, not the supercar RIDE_HEIGHT
+      body.setTranslation({ x: nextPos.x, y: BIKE_RIDE_HEIGHT, z: nextPos.z }, true); // matches SupercarBody's RIDE_HEIGHT concept now, see BIKE_RIDE_HEIGHT above
       fallSpeed.current = 0;
       bike.current.speed = 0;
       return;
