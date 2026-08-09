@@ -100,3 +100,21 @@ export function clampFromWater(pos: { x: number; z: number }) {
   const maxX = onPier ? LAND_EDGE_X + PIER_LEN : LAND_EDGE_X;
   if (pos.x > maxX) pos.x = maxX;
 }
+
+// Mirror image of clampFromWater, for BOATS: the coastline here is a single
+// half-plane (x >= LAND_EDGE_X is water — see City.tsx's SHORE_CI/Water.tsx's
+// CENTER_X, there's no other shore edge a boat could reach), so the same
+// PIER_Z-band split applies, just inverted — a boat caught in the pier's z
+// band gets pushed all the way past the dock's far end (LAND_EDGE_X +
+// PIER_LEN) rather than just the shoreline, since pierPush's own radius-2
+// push-out already keeps a hull off the dock's actual footprint; this is only
+// the same "physically cannot end up on the other side" backstop
+// clampFromWater documents, generalized to boats instead of land vehicles.
+// `margin` widens the boundary for the hull's own half-length (Boat.tsx's
+// original hardcoded `LAND_EDGE_X + 5`), since a boat clamped by its center
+// point alone would still let its bow poke onto land.
+export function clampToWater(pos: { x: number; z: number }, margin = 0) {
+  const onPier = pos.z > PIER_Z - 4.5 && pos.z < PIER_Z + 4.5;
+  const minX = (onPier ? LAND_EDGE_X + PIER_LEN : LAND_EDGE_X) + margin;
+  if (pos.x < minX) pos.x = minX;
+}
