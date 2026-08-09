@@ -196,6 +196,24 @@ export function Car() {
 
     const t = body.translation();
     const nextPos = { x: t.x + movement.x, y: t.y + movement.y, z: t.z + movement.z };
+    // PERFTEMP36-START (temporary #36 high-speed judder repro instrumentation
+    // — delete before commit) — sample sweep distance/grounded/y at high
+    // speed to confirm or rule out lib/marina.ts's tunneling hypothesis
+    // before writing any fix.
+    if (typeof window !== "undefined" && Math.abs(car.current.speed) > 30) {
+      const w = window as unknown as { __pf36?: Array<Record<string, number | boolean>> };
+      if (!w.__pf36) w.__pf36 = [];
+      w.__pf36.push({
+        t: performance.now(),
+        speed: car.current.speed,
+        sweepDist: Math.hypot(dx, dz),
+        grounded,
+        y: nextPos.y,
+        movY: movement.y,
+      });
+      if (w.__pf36.length > 2000) w.__pf36.shift();
+    }
+    // PERFTEMP36-END
     // hard backstop, independent of the WATER_BOUNDARY collider — see
     // lib/marina.ts's clampFromWater for why the collider alone isn't
     // trusted at nitro speed.
