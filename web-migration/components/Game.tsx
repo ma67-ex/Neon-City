@@ -47,6 +47,7 @@ import { toggleVehicleFoot } from "@/lib/player";
 import { boatSwapAction } from "@/lib/boatSwap";
 import { seatAction } from "@/lib/clubSeats";
 import { armoryPickupAction } from "@/lib/armory";
+import { ticketPickupAction } from "@/lib/ticketBooth";
 import { stealTrafficAction } from "@/lib/steal";
 import { PoliceCar } from "@/components/PoliceCar";
 import { PoliceJeep } from "@/components/PoliceJeep";
