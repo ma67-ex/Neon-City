@@ -47,6 +47,9 @@ export function Bike() {
   const controllerRef = useRef<KinematicCharacterController | null>(null);
   const leanRef = useRef(0);
   const riderRef = useRef<THREE.Group>(null);
+  const frontWheelRef = useRef<THREE.Group>(null);
+  const rearWheelRef = useRef<THREE.Group>(null);
+  const wheelRotRef = useRef(0);
 
   useEffect(() => {
     const controller = world.createCharacterController(0.02);
