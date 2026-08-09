@@ -1,4 +1,5 @@
 import { registerInterior } from "@/lib/interiors";
+import { useHudStore } from "@/lib/hudStore";
 
 // CLUB_IN (interior) keeps the original's far-south coordinate; the EXTERIOR was
 // moved off the (-50,-50) road intersection — where the 38×28 building straddled
