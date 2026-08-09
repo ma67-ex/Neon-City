@@ -181,11 +181,23 @@ export function stepCarPhysics(
   }
 
   // engine / brakes / drag
-  if (input.forward) vlong += (vlong < 0 ? 40 : h.accel) * dt;
-  else if (input.back) vlong -= (vlong > 0 ? 42 : h.accel * 0.5) * dt;
-  vlong -= vlong * h.drag * dt;
-  vlong -= vlong * Math.abs(vlong) * h.dragQ * dt;
-  if (input.handbrake) vlong -= vlong * 1.8 * dt;
+  // wetGrip previously only touched lateral grip below, leaving accel and
+  // braking/drag identical dry vs. rain/snow — a player mashing the brake in
+  // snow stopped exactly as fast as on dry pavement. Two gentler (not raw
+  // wetGrip 1:1) curves fix that: accelGrip softens power delivery
+  // (wheelspin eating some of the throttle), brakeGrip softens every
+  // deceleration term (hard brake, handbrake, and passive drag/rolling
+  // resistance — a car coasts further when it can't bite the road). Both are
+  // strictly monotonic in wetGrip so snow stays more punishing than rain,
+  // matching the existing 0.3/0.5 wetGrip split, and both are exactly 1 (a
+  // no-op) whenever wetGrip is 1 — clear/sunny/overcast/fog drive unchanged.
+  const accelGrip = 0.5 + 0.5 * weatherState.wetGrip; // 1 dry, ~0.75 rain, ~0.65 snow
+  const brakeGrip = 0.4 + 0.6 * weatherState.wetGrip; // 1 dry, ~0.7 rain, ~0.58 snow
+  if (input.forward) vlong += (vlong < 0 ? 40 * brakeGrip : h.accel * accelGrip) * dt;
+  else if (input.back) vlong -= (vlong > 0 ? 42 * brakeGrip : h.accel * 0.5 * accelGrip) * dt;
+  vlong -= vlong * h.drag * brakeGrip * dt;
+  vlong -= vlong * Math.abs(vlong) * h.dragQ * brakeGrip * dt;
+  if (input.handbrake) vlong -= vlong * 1.8 * brakeGrip * dt;
   vlong = clamp(vlong, -16, h.max);
 
   // lateral grip: tyres bleed sideways velocity away; handbrake breaks traction.
