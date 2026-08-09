@@ -2491,7 +2491,7 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       top of that, not a duplicate. **BLOCKED ON ART** — Akul providing a
       new bike reference image.
 
-- [ ] 50. ★★★☆☆ **Cars look like they're floating — elevation/ride-
+- [ ] 50. ★★★☆☆ **[Partially done by Akul]** **Cars look like they're floating — elevation/ride-
       height issue.** **Partial — Bike.tsx fixed, PoliceJeep.tsx still
       open.** Code-level audit found the direction contradicted the report:
       `Bike.tsx` (no `RIDE_HEIGHT` concept at all, hardcoded spawn) and
