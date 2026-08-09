@@ -101,6 +101,10 @@ interface HudState {
   // picked up at the armory (lib/armory.ts, components/GunStore.tsx) — Player.tsx
   // reads this to gate F-key firing on foot, same lib/tankShell.ts fireQueue Tank.tsx uses
   hasGun: boolean;
+  // picked up at the VENU ticket booth (lib/ticketBooth.ts) — lib/interiors.ts's
+  // VENU registration (lib/club.ts) reads this via its optional `gate` field to
+  // block the door until the player has one, same one-shot-flag shape as hasGun
+  hasTicket: boolean;
   // multiplier on lib/cameraLook.ts's YAW/PITCH_SENSITIVITY, player-tunable
   // via the HUD slider (components/HUD.tsx). 1 = the tuned default feel.
   lookSensitivity: number;
