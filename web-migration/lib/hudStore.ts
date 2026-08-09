@@ -200,6 +200,7 @@ export const useHudStore = create<HudState>((set, get) => ({
   toggleControlsVisible: () => set((s) => ({ controlsVisible: !s.controlsVisible })),
   setStolenCar: (v) => set({ stolenCar: v }),
   setHasGun: (v) => set({ hasGun: v }),
+  setHasTicket: (v) => set({ hasTicket: v }),
   setLookSensitivity: (v) =>
     set({ lookSensitivity: Math.max(MIN_LOOK_SENS, Math.min(MAX_LOOK_SENS, v)) }),
   vehicleName: () => {
