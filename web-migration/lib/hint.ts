@@ -11,8 +11,10 @@ import { nearestSeat } from "@/lib/clubSeats";
 const STEAL_RADIUS2 = 5 * 5; // slightly wider than the 4.5 mount action radius
 
 /** Single source of truth for the #hint line, polled once per frame by
- * Club.tsx (always mounted). Club door takes priority over the vehicle-mount
- * hint, same order as the original's `if(!clubDoorAction()) toggleVehicle()`. */
+ * Club.tsx (always mounted). Ticket booth takes priority over the club door
+ * hint (need the ticket before the VENU gate matters), which in turn takes
+ * priority over the vehicle-mount hint, same order as the original's
+ * `if(!clubDoorAction()) toggleVehicle()`. */
 export function computeHint(): string | null {
   const ticket = ticketHintText();
   if (ticket) return ticket;
