@@ -2472,19 +2472,16 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       (which had no land restriction whatsoever before). `tsc`/build clean,
       verified via direct code diff review.
 
-- [ ] 49. ★★★☆☆ **Bike redesign — new shape, wider body, wheels that
-      actually spin.** Current `BikeMesh`/`Wheel` in `components/Bike.tsx`
-      (redesigned after "the Verge TS Ultra" per its own comment) needs a
-      new silhouette per Akul's reference, wider than current, AND the
-      wheel meshes need actual rotation animation tied to speed (check
-      whether `Wheel`'s cylinder currently ever gets a `rotation.x`
-      (or appropriate axis given the `rotation={[0,0,Math.PI/2]}` group
-      pre-rotation) update per frame off `bike.current.speed` — likely it
-      does not, since Wheel is defined as static JSX with no ref/useFrame
-      hook). This session's #29 fix (commit `1b565cb`) only fixed the
-      hub/tire color contrast — this is a full shape + animation redo on
-      top of that, not a duplicate. **BLOCKED ON ART** — Akul providing a
-      new bike reference image.
+- [ ] 49. ★★★☆☆ **[Partially done by Akul — wheel-spin only]** **Bike redesign — new shape, wider body, wheels that
+      actually spin.** **Wheel-spin animation: DONE.** Pulled `WHEEL_RADIUS`
+      out as a shared named export, correctly derived the spin axis/sign
+      given the wheel's existing `rotation=[0,0,Math.PI/2]` pre-rotation
+      (verified via a standalone matrix check, not guessed), kept the
+      imperative per-frame spin on a separate inner group so React
+      re-renders can't clobber it, reverse-direction handled automatically
+      by sign. Live-verified wheels visibly rotating while driving.
+      **New shape/wider silhouette: still BLOCKED ON ART** — Akul providing
+      a new bike reference image, not started.
 
 - [ ] 50. ★★★☆☆ **[Partially done by Akul]** **Cars look like they're floating — elevation/ride-
       height issue.** **Partial — Bike.tsx fixed, PoliceJeep.tsx still
