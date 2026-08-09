@@ -2352,17 +2352,16 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       `e4b0289` (this session) — don't leave both systems fighting each
       other.
 
-- [ ] 38. ★★☆☆☆ **Snow/rain traction loss.** Partial system already
-      exists — `lib/weatherState.ts` has a `wetGrip` multiplier already
-      wired into `lib/carPhysics.ts`'s `stepCarPhysics()`
-      (`const grip = (input.handbrake ? 2.2 : h.grip) * weatherState.wetGrip;`).
-      Check whether `weatherState` has a distinct SNOW case (vs. just rain)
-      and whether `wetGrip`'s current value range is strong enough to read
-      as real traction loss — Abdullah wants a noticeably slippier feel,
-      not just a subtle grip tweak. Consider also spawning
-      `components/DriftFX.tsx`-style tire-smoke/spray puffs (this session's
-      new drift-smoke system) more aggressively when `wetGrip` is active,
-      so the loss of control has a visible cue, not just a physics number.
+- [x] 38. ★★☆☆☆ **[Done by Akul]** **Snow/rain traction loss.** Fixed the real gap: `weatherState` already
+      had a distinct SNOW case tuned more punishing than rain (0.3 vs 0.5
+      grip) — that part was already fine. `wetGrip` only ever multiplied
+      lateral/cornering grip, never acceleration or braking/drag, so
+      braking distance was identical dry vs. snow. Added separate
+      `accelGrip`/`brakeGrip` curves in `lib/carPhysics.ts` (both monotonic
+      in `wetGrip`, both exactly 1/no-op when dry) extending the effect
+      into acceleration and every deceleration term. Also tied
+      `components/DriftFX.tsx`'s existing slip-triggered smoke to a
+      weather-aware boost so the traction loss has a visible cue.
 
 - [ ] 39. ★★★★☆ **Better cockpit: console/armrest + visible driver
       hands on the wheel.** `components/CarInterior.tsx` already has a
