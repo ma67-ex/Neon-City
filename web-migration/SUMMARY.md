@@ -2380,7 +2380,7 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       it didn't touch quality/detail, so this is new scope, not a
       follow-up bug.
 
-- [x] 40. ★★☆☆☆ **Bike rider renders as a solid black blob, not the
+- [x] 40. ★★☆☆☆ **[Done by Akul]** **Bike rider renders as a solid black blob, not the
       player.** Fixed. Live-checked in-game first (CINE camera, close angle)
       — confirmed the rider reads as a genuinely flat black silhouette, no
       material distinction. Root cause was NOT missing lighting or an unlit
