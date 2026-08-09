@@ -2380,20 +2380,20 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       it didn't touch quality/detail, so this is new scope, not a
       follow-up bug.
 
-- [ ] 40. ★★☆☆☆ **Bike rider renders as a solid black blob, not the
-      player.** `components/Bike.tsx`'s `BikeRider()` function (a
-      "minimal seated silhouette," per its own comment, distinct from the
-      full `PersonFigure` walk-cycle rig `Pedestrians.tsx` uses) is
-      probably losing its material/lighting — check whether its meshes
-      have a real `meshStandardMaterial`/`meshLambertMaterial` with a
-      light-reachable color, vs. an unlit black material, missing
-      `castShadow`/normals, or sitting in Rider's own shadow with no
-      fill light nearby (the fix is very likely small — a material or
-      lighting fix, not a rig rebuild). Compare against how
-      `components/CarInterior.tsx` or `HeliCockpit.tsx` light their own
-      interior occupant/dashboard (both added local `pointLight`s "without
-      it reads as a black silhouette against the sky" — same fix may
-      apply here).
+- [x] 40. ★★☆☆☆ **Bike rider renders as a solid black blob, not the
+      player.** Fixed. Live-checked in-game first (CINE camera, close angle)
+      — confirmed the rider reads as a genuinely flat black silhouette, no
+      material distinction. Root cause was NOT missing lighting or an unlit
+      material (`BikeRider()`'s meshes already use `MeshStandardMaterial`
+      with `castShadow`) — the colors themselves (`#1c1e22`/`#101114`/
+      `#26282c`) were just too close to true black for open-air scene
+      lighting to produce visible diffuse shading. Also: `CarInterior.tsx`/
+      `HeliCockpit.tsx`'s local pointLights exist because those occupants
+      sit shaded under a roof — a motorcycle rider sits in open light, so
+      that fix doesn't transfer; brightened the base colors instead
+      (`#3a3f47`/`#23262c`/`#454a52`, helmet gained a touch of metalness/
+      lower roughness for a real specular highlight). Re-verified live —
+      rider now shows visible shape/contrast instead of a flat silhouette.
 
 - [ ] 41. ★★☆☆☆ **VENU ticket booth entrance.** A small entry area
       before the club door where the player gets a "ticket" (can be as
