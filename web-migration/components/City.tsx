@@ -11,6 +11,7 @@ import { loadSave } from "@/lib/saveGame";
 import { LANDMARKS } from "@/lib/landmarks";
 import { CLUB_IN } from "@/lib/club";
 import { HIGHWAY_CHUNKS } from "@/lib/highway";
+import { BUILDING_SPOTS } from "@/lib/interiorSpots";
 
 // Real chunk-streamed city (Milestone 5), replacing the placeholder 7-box
 // arena from Phase 1. Same constants and the same seeded-PRNG-per-chunk
@@ -637,6 +638,20 @@ const LOBES = [
 // which chunk each landmark sits in, so buildChunk (well, Chunk) forces it clear —
 // same idea as the original's landmarkChunks map
 const LANDMARK_CHUNKS = new Set(LANDMARKS.map((l) => `${Math.round(l.x / CELL)},${Math.round(l.z / CELL)}`));
+// same exemption for the 12 EnterableBuildings.tsx spots (lib/interiorSpots.ts)
+// — without this the procedural generator drops random buildings/parks right
+// on top of them, since their block centers otherwise look like any other chunk.
+// Lazily built on first use (not at module scope like LANDMARK_CHUNKS above) —
+// this module and EnterableBuildings.tsx both now import BUILDING_SPOTS, and
+// eagerly deriving a Set from it here at import time tripped a Turbopack
+// dev-bundler ordering bug (ReferenceError: BUILDING_SPOTS is not defined).
+let _buildingSpotChunks: Set<string> | null = null;
+function buildingSpotChunks(): Set<string> {
+  if (!_buildingSpotChunks) {
+    _buildingSpotChunks = new Set(BUILDING_SPOTS.map((b) => `${Math.round(b.ext.x / CELL)},${Math.round(b.ext.z / CELL)}`));
+  }
+  return _buildingSpotChunks;
+}
 // CLUB_IN sits far south, outside any real landmark chunk — exempt it too so
 // no random building/park spawns inside/around the club interior room
 const CLUB_IN_CHUNK = `${Math.round(CLUB_IN.x / CELL)},${Math.round(CLUB_IN.z / CELL)}`;
@@ -822,6 +837,7 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
   const isExempt =
     (ci === 0 && cj === 0) ||
     LANDMARK_CHUNKS.has(`${ci},${cj}`) ||
+    buildingSpotChunks().has(`${ci},${cj}`) ||
     `${ci},${cj}` === CLUB_IN_CHUNK ||
     AIRPORT_CHUNKS.has(`${ci},${cj}`) ||
     HIGHWAY_CHUNKS.has(`${ci},${cj}`);
