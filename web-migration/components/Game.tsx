@@ -119,8 +119,9 @@ export default function Game() {
       initAudio(); // no-ops once already initialized; needs a real user gesture, so first key does it
       const hud = useHudStore.getState();
       if (e.code === "KeyE") {
-        // door beats sitting/standing beats gun pickup beats boat-swap beats mount beats stealing an NPC
-        if (!interiorDoorAction() && !seatAction() && !armoryPickupAction() && !boatSwapAction() && !toggleVehicleFoot()) stealTrafficAction();
+        // ticket pickup beats door (need the ticket before the VENU gate matters) beats
+        // sitting/standing beats gun pickup beats boat-swap beats mount beats stealing an NPC
+        if (!ticketPickupAction() && !interiorDoorAction() && !seatAction() && !armoryPickupAction() && !boatSwapAction() && !toggleVehicleFoot()) stealTrafficAction();
       } else if (e.code === "KeyB") {
         hud.toggleActive();
         hud.showMsg("SWITCHED TO: " + hud.vehicleName());
