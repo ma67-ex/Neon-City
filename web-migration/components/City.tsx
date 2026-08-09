@@ -370,6 +370,18 @@ function buildTileTexture(interiorFill: string, isGrass = false) {
   // cam — anisotropic filtering is what keeps that in-focus instead of
   // smearing into mush at distance, on top of the per-texel sharpness above
   tex.anisotropy = 16;
+  // minFilter was previously left at THREE's default (LinearMipmapLinearFilter
+  // — trilinear, blends the two nearest mip levels together every frame),
+  // deliberately chosen so distant tiles anti-alias instead of shimmering —
+  // but at road-line scale (thin dashed/solid stripes a few pixels wide in
+  // the source texture) that blend is what reads as "blurry" at distance,
+  // per Abdullah's #45. LinearMipmapNearestFilter is the middle ground: still
+  // mipmapped (so distant tiles still anti-alias, no shimmer regression) but
+  // samples from a single nearest mip level instead of blending two, which
+  // keeps thin lines legible noticeably farther out. If this still shimmers
+  // in practice, the anisotropy=16 above is the next lever before reaching
+  // for NearestFilter outright (which would drop mip anti-aliasing entirely).
+  tex.minFilter = THREE.LinearMipmapNearestFilter;
   return tex;
 }
 
