@@ -2317,7 +2317,7 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       is a visual/UX redesign of the shell, not new functionality. **BLOCKED
       ON ART** — Akul providing reference pictures for the phone's look.
 
-- [x] 36. ★★★☆☆ **High-speed car glitch — camera flinch, judder above
+- [x] 36. ★★★☆☆ **[Done by Akul]** **High-speed car glitch — camera flinch, judder above
       ~100 km/h.** Fixed, root-caused via real repro data, not the
       cameraRig pow()-lerp suspected in the original note (analyzed and
       ruled out — that math is scale-invariant). Instrumented Car.tsx
