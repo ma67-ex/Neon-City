@@ -2432,19 +2432,19 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       one-shot/looping sounds (check how horn/siren sounds, if any exist,
       are triggered elsewhere first).
 
-- [ ] 45. ★★★☆☆ **Sharpen distant roads/white lines — currently read
-      blurry far away.** `components/City.tsx`'s `buildTileTexture()`
-      already sets `tex.magFilter = THREE.NearestFilter` and
-      `tex.anisotropy = 16` specifically to fix near-camera blur (see
-      that function's own comments) — the *distant* blur is a different
-      problem, most likely `minFilter`'s default mipmapping smoothing
-      lane markings into mush at a distance, or the chunk-streaming
-      system (`VIEW = 2` chunk radius) not having enough resolution once
-      a tile is far from camera. Investigate `tex.minFilter` (currently
-      unset, defaults to `THREE.LinearMipmapLinearFilter`) and whether a
-      sharper `minFilter` or a higher base texture `size` (currently 1536)
-      actually fixes far-distance clarity without reintroducing the near-
-      camera shimmer NearestFilter was chosen to avoid.
+- [x] 45. ★★★☆☆ **Sharpen distant roads/white lines — currently read
+      blurry far away.** Was a deliberate tradeoff, not an oversight —
+      `buildTileTexture()`'s own comment confirmed the unset `minFilter`
+      (defaulting to `THREE.LinearMipmapLinearFilter`, trilinear) was
+      chosen specifically so distant tiles anti-alias instead of
+      shimmering. Chose the middle-ground fix rather than the two extremes:
+      set `tex.minFilter = THREE.LinearMipmapNearestFilter` — still
+      mipmapped (distant tiles still anti-alias, no shimmer regression) but
+      samples a single nearest mip level instead of blending two, which
+      keeps thin lane lines legible noticeably farther out. If this still
+      shimmers in practice, `anisotropy=16` (already set) is the next lever
+      before reaching for `NearestFilter` outright, which would drop mip
+      anti-aliasing entirely.
 
 - [ ] 46. ★★★☆☆ **Mansion guards — 2 permanent patrolling guards.**
       Depends on #42 (mansion) existing first. Likely reuses
