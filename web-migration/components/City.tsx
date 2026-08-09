@@ -815,7 +815,13 @@ function Chunk({ ci, cj }: { ci: number; cj: number }) {
     HIGHWAY_CHUNKS.has(`${ci},${cj}`);
 
   const content = useMemo(() => {
-    if (isExempt) return { buildings: [] as BuildingSpec[], trees: [] as TreeDesc[], isPark: false, lamp: null as { x: number; z: number } | null };
+    if (isExempt)
+      return {
+        buildings: [] as BuildingSpec[],
+        trees: [] as TreeDesc[],
+        isPark: false,
+        lamp: null as { x: number; z: number; rotY: number } | null,
+      };
     const rand = mulberry32(((ci * 73856093) ^ (cj * 19349663) ^ 0x5bd1e995) >>> 0);
     const isPark = rand() < 0.13; // matches the original's isPark chance exactly
     const margin = ROAD_W / 2 + 6;
