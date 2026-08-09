@@ -85,6 +85,11 @@ export function PatrolBoat() {
     vehicleState.patrolBoat.speed = boat.current.speed;
     vehicleState.patrolBoat.vLat = boat.current.vLat;
 
+    // light bar always flashes, active or parked — same call as PoliceCar.tsx/PoliceJeep.tsx
+    const flashRed = Math.floor(state.clock.elapsedTime * 5) % 2 === 0;
+    if (lightRefs.current[0]) lightRefs.current[0].color.set(flashRed ? "#ff2020" : "#160000");
+    if (lightRefs.current[1]) lightRefs.current[1].color.set(flashRed ? "#0a1030" : "#2040ff");
+
     if (!isActive) return;
     worldState.px = pos.current.x;
     worldState.pz = pos.current.z;
