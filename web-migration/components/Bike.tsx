@@ -82,7 +82,7 @@ export function Bike() {
     // club door teleport (enter/exit VENU) — see lib/club.ts
     if (isActive && teleportRequest.pending) {
       teleportRequest.pending = false;
-      body.setTranslation({ x: teleportRequest.x, y: 1, z: teleportRequest.z }, true);
+      body.setTranslation({ x: teleportRequest.x, y: BIKE_RIDE_HEIGHT, z: teleportRequest.z }, true);
       bike.current.h = teleportRequest.h;
       bike.current.speed = 0;
       bike.current.vLat = 0;
