@@ -30,4 +30,7 @@ registerInterior({
   exitRadius2: 14,
   hintEnterRadius2: 40,
   hintExitRadius2: 30,
+  // door won't let you in without a ticket from lib/ticketBooth.ts's booth
+  gate: () => useHudStore.getState().hasTicket,
+  gateMsg: "You need a ticket first — check the booth",
 });
