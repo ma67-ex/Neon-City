@@ -242,12 +242,21 @@ export function Bike() {
       ref={bodyRef}
       type="kinematicPosition"
       colliders={false}
-      position={[save?.x ?? -20, groundYAt(save?.x ?? -20, save?.z ?? 0) + 1, save?.z ?? 0]}
+      position={[save?.x ?? -20, groundYAt(save?.x ?? -20, save?.z ?? 0) + BIKE_RIDE_HEIGHT, save?.z ?? 0]}
     >
       {/* VEHICLE_BODY_GROUPS so the player's bike passes VEHICLE_ONLY colliders
           (airport gate gap, Airport.tsx) like Car.tsx and Player.tsx do, but
-          still gets stopped by WATER_BOUNDARY (Marina.tsx) at the water's edge. */}
-      <CuboidCollider ref={colliderRef} args={[bikeBox.x / 2, bikeBox.y / 2, bikeBox.z / 2]} collisionGroups={VEHICLE_BODY_GROUPS} />
+          still gets stopped by WATER_BOUNDARY (Marina.tsx) at the water's edge.
+          position.y = bikeBox.y/2 - BIKE_RIDE_HEIGHT puts the collider BOTTOM
+          at -BIKE_RIDE_HEIGHT relative to the RigidBody's own translation —
+          same formula SupercarBody.tsx's cars use — so it lands exactly on
+          the visual tyre contact patch instead of 0.31m above it. */}
+      <CuboidCollider
+        ref={colliderRef}
+        args={[bikeBox.x / 2, bikeBox.y / 2, bikeBox.z / 2]}
+        position={[0, bikeBox.y / 2 - BIKE_RIDE_HEIGHT, 0]}
+        collisionGroups={VEHICLE_BODY_GROUPS}
+      />
       <BikeMesh frontWheelRef={frontWheelRef} rearWheelRef={rearWheelRef} />
       <group ref={riderRef}>
         <BikeRider />
