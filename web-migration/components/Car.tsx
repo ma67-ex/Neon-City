@@ -193,34 +193,32 @@ export function Car() {
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
+    // #36 fix — the actual measured cause of the reported high-speed camera
+    // judder: real repro data (sustained nitro runs, ~1000+ sampled frames,
+    // logged speed/grounded/y/x/z) showed computedGrounded() flickering false
+    // for 2-3 frames at moderate-high speed (confirmed at both ~45 and ~33
+    // m/s, in both cases a few units past a chunk boundary — CELL=100 in
+    // City.tsx), with movement.y spiking +0.13..+0.28 in a single frame
+    // before self-correcting back to ~1.0 two frames later. This is NOT the
+    // "sweep tunnels through a thin collider at 200+ km/h" mechanism
+    // lib/marina.ts's clampFromWater comment describes (sweep distance at
+    // the moment of the glitch was only ~2.2-2.9 units, an ordinary car-
+    // length, and driving well past 200 km/h for 12+ seconds elsewhere
+    // produced zero glitches) — it reads instead as Rapier's snap-to-ground
+    // briefly detecting a higher/misaligned ground candidate right at a
+    // chunk seam. The fix targets the actual physical impossibility rather
+    // than the seam geometry itself (which would need per-chunk collider
+    // work to track down exactly): this game NEVER requests upward Y motion
+    // for a car — fallSpeed only ever accumulates <=0 via GRAVITY_PULL, so
+    // the sweep's own y input above is always <=0. Any resulting
+    // movement.y beyond a small ground-snap tolerance is therefore
+    // necessarily a transient KCC glitch, not legitimate physics — clamping
+    // it here fixes the visible pop at its source instead of trying to
+    // paper over it in the chase-cam lerp.
+    if (movement.y > 0.06) movement.y = 0.06;
 
     const t = body.translation();
     const nextPos = { x: t.x + movement.x, y: t.y + movement.y, z: t.z + movement.z };
-    // PERFTEMP36-START (temporary #36 high-speed judder repro instrumentation
-    // — delete before commit) — sample sweep distance/grounded/y at high
-    // speed to confirm or rule out lib/marina.ts's tunneling hypothesis
-    // before writing any fix.
-    if (typeof window !== "undefined" && Math.abs(car.current.speed) > 30) {
-      const w = window as unknown as { __pf36?: Array<Record<string, number | boolean>> };
-      if (!w.__pf36) w.__pf36 = [];
-      w.__pf36.push({
-        t: performance.now(),
-        speed: car.current.speed,
-        sweepDist: Math.hypot(dx, dz),
-        grounded,
-        y: nextPos.y,
-        movY: movement.y,
-        x: nextPos.x,
-        z: nextPos.z,
-        // chunk-seam correlation: CELL=100 in City.tsx, so a seam sits at
-        // every multiple of 100 — distance to the nearest seam on each axis
-        // (((n%100)+100)%100 to stay positive for negative world coords)
-        distToSeamX: Math.min((((nextPos.x % 100) + 100) % 100), 100 - (((nextPos.x % 100) + 100) % 100)),
-        distToSeamZ: Math.min((((nextPos.z % 100) + 100) % 100), 100 - (((nextPos.z % 100) + 100) % 100)),
-      });
-      if (w.__pf36.length > 2000) w.__pf36.shift();
-    }
-    // PERFTEMP36-END
     // hard backstop, independent of the WATER_BOUNDARY collider — see
     // lib/marina.ts's clampFromWater for why the collider alone isn't
     // trusted at nitro speed.
