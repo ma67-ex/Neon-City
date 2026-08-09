@@ -2479,7 +2479,9 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       (verified via a standalone matrix check, not guessed), kept the
       imperative per-frame spin on a separate inner group so React
       re-renders can't clobber it, reverse-direction handled automatically
-      by sign. Live-verified wheels visibly rotating while driving.
+      by sign. `tsc`/build clean, verified via direct code diff review
+      (matrix reasoning re-checked, not just trusted) — not a fresh live
+      playthrough this pass.
       **New shape/wider silhouette: still BLOCKED ON ART** — Akul providing
       a new bike reference image, not started.
 
