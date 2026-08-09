@@ -248,7 +248,7 @@ export function Bike() {
           (airport gate gap, Airport.tsx) like Car.tsx and Player.tsx do, but
           still gets stopped by WATER_BOUNDARY (Marina.tsx) at the water's edge. */}
       <CuboidCollider ref={colliderRef} args={[bikeBox.x / 2, bikeBox.y / 2, bikeBox.z / 2]} collisionGroups={VEHICLE_BODY_GROUPS} />
-      <BikeMesh />
+      <BikeMesh frontWheelRef={frontWheelRef} rearWheelRef={rearWheelRef} />
       <group ref={riderRef}>
         <BikeRider />
       </group>
