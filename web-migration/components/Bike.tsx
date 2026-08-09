@@ -283,7 +283,13 @@ function Wheel({ z, hubR, hubThick, spinRef }: { z: number; hubR: number; hubThi
 // the Verge TS Ultra: angular faceted tank panels, twin stacked headlights,
 // gold upside-down fork tubes, a floating tail with no bulky subframe, and
 // an oversized rear hub standing in for the real bike's hubless rear motor.
-export function BikeMesh() {
+export function BikeMesh({
+  frontWheelRef,
+  rearWheelRef,
+}: {
+  frontWheelRef?: React.RefObject<THREE.Group | null>;
+  rearWheelRef?: React.RefObject<THREE.Group | null>;
+} = {}) {
   return (
     <group>
       {/* main body spine */}
