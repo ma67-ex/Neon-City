@@ -769,27 +769,35 @@ type TreeDesc = { x: number; z: number; h: number; r: number; matIdx: number };
 const LAMP_POLE_MAT = new THREE.MeshStandardMaterial({ color: "#26282c", metalness: 0.6, roughness: 0.4 });
 const LAMP_HEAD_MAT = new THREE.MeshStandardMaterial({ color: "#1c1a10", emissive: "#ffb060", emissiveIntensity: 2.2, roughness: 0.5 });
 const LAMP_HEIGHT = 5.2;
-const LAMP_ARM = 1.1;
+// Was 1.1 — sized for reaching just barely into an intersection from a
+// corner. Lamps now stand on the sidewalk just outside the road edge and
+// the arm has to actually clear the paved surface (ROAD_W=20, so the road
+// spans +/-10 off its centerline) to hang over it, not just poke at it.
+const LAMP_ARM = 9;
 
 // ponytail: always-on, no day/night dimmer — Club.tsx's own VENU sign
 // lights are likewise always on regardless of time of day, same simplification.
 // Upgrade path if it ever matters: scale LAMP_HEAD_MAT.emissiveIntensity and
 // the PointLight's intensity off SkyCycle.tsx's own night factor.
-function StreetLamp({ x, z }: { x: number; z: number }) {
+// rotY aims the arm+head+light sub-group (the pole itself never needs to
+// rotate — it's a vertical cylinder, rotationally symmetric). 0 = arm
+// extends in local +X; callers rotate it to aim the head out over whichever
+// road edge the pole is planted beside.
+function StreetLamp({ x, z, rotY = 0 }: { x: number; z: number; rotY?: number }) {
   return (
     <group position={[x, 0, z]}>
       <mesh material={LAMP_POLE_MAT} castShadow>
         <cylinderGeometry args={[0.06, 0.08, LAMP_HEIGHT, 8]} />
       </mesh>
-      <group position={[0, LAMP_HEIGHT / 2, 0]}>
+      <group position={[0, LAMP_HEIGHT / 2, 0]} rotation={[0, rotY, 0]}>
         <mesh position={[LAMP_ARM / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]} material={LAMP_POLE_MAT}>
           <cylinderGeometry args={[0.045, 0.045, LAMP_ARM, 6]} />
         </mesh>
         <mesh position={[LAMP_ARM, -0.12, 0]} material={LAMP_HEAD_MAT}>
           <sphereGeometry args={[0.22, 10, 8]} />
         </mesh>
+        <pointLight position={[LAMP_ARM, -0.12, 0]} color="#ffb060" intensity={1.6} distance={14} decay={2} />
       </group>
-      <pointLight position={[LAMP_ARM, LAMP_HEIGHT / 2 - 0.12, 0]} color="#ffb060" intensity={1.6} distance={14} decay={2} />
     </group>
   );
 }
