@@ -141,7 +141,7 @@ export function Bike() {
       drownTime.current += d;
       if (drownTime.current > DROWN_LIMIT) {
         drownTime.current = 0;
-        body.setTranslation({ x: DROWN_RESPAWN.x, y: 1, z: DROWN_RESPAWN.z }, true);
+        body.setTranslation({ x: DROWN_RESPAWN.x, y: BIKE_RIDE_HEIGHT, z: DROWN_RESPAWN.z }, true);
         bike.current.h = DROWN_RESPAWN.h;
         bike.current.speed = 0;
         bike.current.vLat = 0;
