@@ -99,7 +99,10 @@ export function interiorHintText(): string | null {
   for (const b of REGISTRY.values()) {
     const dx = worldState.px - b.doorOut.x;
     const dz = worldState.pz - b.doorOut.z;
-    if (dx * dx + dz * dz < b.hintEnterRadius2) return `Press E to enter ${b.displayName}`;
+    if (dx * dx + dz * dz < b.hintEnterRadius2) {
+      if (b.gate && !b.gate()) return b.gateMsg ?? `${b.displayName}: entry blocked`;
+      return `Press E to enter ${b.displayName}`;
+    }
   }
   return null;
 }
