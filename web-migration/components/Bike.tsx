@@ -272,13 +272,28 @@ const BIKE_HUB_MAT = new THREE.MeshStandardMaterial({ color: "#c4cad2", metalnes
 // named constant so Bike()'s useFrame wheel-spin math (rotation = speed/radius)
 // can't silently drift out of sync with the actual mesh.
 export const WHEEL_RADIUS = 0.34;
+// vertical drop from the bike's own local origin (BikeMesh's group root) down
+// to each wheel's axle — used below by BIKE_RIDE_HEIGHT so the ride-height
+// fix stays tied to the actual geometry instead of a second hand-copied number.
+const WHEEL_Y_OFFSET = 0.42;
+// distance from the RigidBody's own translation origin down to the tyre
+// contact patch — same concept as SupercarBody.tsx's RIDE_HEIGHT, computed
+// from the wheel's own geometry so it can't drift out of sync with it. Was
+// previously not used at all: every spawn/teleport/respawn site in this file
+// hardcoded a flat "y: 1", and the CuboidCollider below had no y offset —
+// with WHEEL_Y_OFFSET+WHEEL_RADIUS=0.76, that left the collider bottom
+// sitting 1-(1-0.9/2)=0.45 above ground while the visual tyre bottom sat at
+// 1-0.76=0.24 above ground, a real 0.31m mismatch (collider higher than the
+// wheels, i.e. the wheels would clip into the ground once the KCC settled
+// the collider onto the surface — the opposite direction from "floating").
+export const BIKE_RIDE_HEIGHT = WHEEL_Y_OFFSET + WHEEL_RADIUS;
 
 // a wheel + its hub — the rear one gets a much bigger hub disc to read as the
 // Verge TS's signature hubless rear end (motor housing fills the wheel
 // instead of spokes around a small hub)
 function Wheel({ z, hubR, hubThick, spinRef }: { z: number; hubR: number; hubThick: number; spinRef?: React.RefObject<THREE.Group | null> }) {
   return (
-    <group position={[0, -0.42, z]} rotation={[0, 0, Math.PI / 2]}>
+    <group position={[0, -WHEEL_Y_OFFSET, z]} rotation={[0, 0, Math.PI / 2]}>
       {/* Inner group carries ONLY the imperative per-frame spin (rotation.y is
           set directly by Bike()'s useFrame via spinRef — never through a JSX
           rotation prop), kept separate from the outer group's declarative
