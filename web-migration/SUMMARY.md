@@ -2492,17 +2492,25 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       new bike reference image.
 
 - [ ] 50. ★★★☆☆ **Cars look like they're floating — elevation/ride-
-      height issue.** Reported as tires mostly not touching the ground.
-      Check `RIDE_HEIGHT` (`components/SupercarBody.tsx`) against
-      `groundYAt()` (`lib/marina.ts`) — every land vehicle drops its
-      collider by `RIDE_HEIGHT` so the collider bottom lands on the tyre
-      contact patch (see Car.tsx's own "collider bottom on the tyre
-      contact patch, not the mesh origin" comment) — if that offset is
-      wrong for the current wheel/body proportions (especially relevant
-      if #49's bike redesign or any other body-shape change shifted
-      proportions), the whole rig floats or sinks. Check across ALL
-      vehicles sharing this pattern (Car/Bike/PoliceCar/PoliceJeep/
-      CommercialVehicle/Tank), not just one.
+      height issue.** **Partial — Bike.tsx fixed, PoliceJeep.tsx still
+      open.** Code-level audit found the direction contradicted the report:
+      `Bike.tsx` (no `RIDE_HEIGHT` concept at all, hardcoded spawn) and
+      `PoliceJeep.tsx` (local `RIDE_HEIGHT=0`, wrong for its actual wheel
+      geometry) both had their collider BOTTOM sitting above the visual
+      wheel bottom — meaning wheels would sink into the ground once the KCC
+      settled, not float. Flagged the contradiction rather than guessing;
+      Akul confirmed proceeding on the fix anyway since correct collider/
+      visual alignment is right regardless of which direction it visually
+      reads. **Fixed Bike.tsx**: added `BIKE_RIDE_HEIGHT` (derived from the
+      wheel's own geometry constants, same self-documenting pattern as
+      `WHEEL_RADIUS`), applied to every spawn/teleport/respawn site and the
+      `CuboidCollider`'s position offset — collider bottom now lands exactly
+      on the tyre contact patch, same formula `SupercarBody.tsx`'s cars use.
+      Live-verified: bike sits flush on the road, no visible gap. **Not yet
+      touched: `PoliceJeep.tsx`'s confirmed `RIDE_HEIGHT=0` mismatch**, and
+      Car/PoliceCar/CommercialVehicle were already confirmed consistent
+      (no fix needed there). Tank doesn't use `groundYAt()` at all — fine on
+      its flat platform, separate minor note, not part of this fix.
 
 - [ ] 51. ★★★★☆ **All FORT NEON tanks drivable, not just one.**
       `lib/militaryBase.ts` has "a 3x3 formation of decorative
