@@ -2421,15 +2421,13 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       already uses a custom `shaderMaterial`/`onBeforeCompile` hook to
       extend, or a plain `meshStandardMaterial` that needs replacing.
 
-- [ ] 44. ★★☆☆☆ **Police boat sirens.** `components/PatrolBoat.tsx` has
-      no light bar at all — `components/PoliceCar.tsx` and
-      `components/PoliceJeep.tsx` both already have one (`lightRefs`,
-      the `flashRed`/`flashAmber` `Math.floor(state.clock.elapsedTime * 5) % 2`
-      pattern flipping between two `MeshBasicMaterial` colors every
-      frame). Port the same pattern onto PatrolBoat's mesh, plus a siren
-      sound cue via `lib/audio.ts` if it has a hook for vehicle-specific
-      one-shot/looping sounds (check how horn/siren sounds, if any exist,
-      are triggered elsewhere first).
+- [x] 44. ★★☆☆☆ **[Done by Akul]** **Police boat sirens (light bar only — no audio siren
+      exists anywhere in the game for ANY police vehicle, confirmed, out
+      of scope).** Fixed. Ported the exact `lightRefs`/flash-flip pattern
+      from `PoliceCar.tsx`/`PoliceJeep.tsx` onto `PatrolBoat.tsx`, replacing
+      the single static red nav-light sphere — unconditional flash
+      regardless of `isActive`, same as the reference. Live-verified the
+      flash via two screenshots a moment apart catching the color flip.
 
 - [x] 45. ★★★☆☆ **[Done by Akul]** **Sharpen distant roads/white lines — currently read
       blurry far away.** Was a deliberate tradeoff, not an oversight —
