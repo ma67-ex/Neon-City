@@ -128,6 +128,12 @@ export function Bike() {
     const grounded = controller.computedGrounded();
     if (grounded) fallSpeed.current = 0;
     const movement = controller.computedMovement();
+    // #36 fix, same reasoning as Car.tsx (measured there via real repro data,
+    // not re-derived here) — fallSpeed only ever accumulates <=0, so the
+    // sweep's requested y is never positive; any resulting movement.y beyond
+    // a small ground-snap tolerance is a transient KCC glitch (most likely a
+    // chunk-seam snap-to-ground false positive), not real physics.
+    if (movement.y > 0.06) movement.y = 0.06;
 
     const t = body.translation();
     const nextPos = { x: t.x + movement.x, y: t.y + movement.y, z: t.z + movement.z };
