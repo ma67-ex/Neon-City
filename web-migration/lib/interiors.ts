@@ -22,6 +22,12 @@ export interface InteriorEntry {
   exitRadius2: number; // squared distance to trigger exiting
   hintEnterRadius2: number; // squared distance to show the enter hint (wider than enterRadius2)
   hintExitRadius2: number; // squared distance to show the exit hint
+  // optional entry requirement (e.g. VENU's ticket-booth flag, lib/club.ts's
+  // registerInterior call + lib/ticketBooth.ts) — checked before letting the
+  // player in so the registry stays generic instead of special-casing a
+  // building id inline here. gateMsg is shown in place of enterMsg when it blocks.
+  gate?: () => boolean;
+  gateMsg?: string;
 }
 
 const REGISTRY = new Map<string, InteriorEntry>();
