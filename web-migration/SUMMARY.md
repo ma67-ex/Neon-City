@@ -2463,18 +2463,14 @@ tasks, same approach the previous list's #23 (enterable buildings) used.
       already running a full `EffectComposer` bloom pass
       (`components/Game.tsx`).
 
-- [ ] 48. ★★★☆☆ **Restrict boats to water only — currently drive onto
-      roads/land.** `lib/marina.ts` has `clampFromWater()`/`SHORE_X`,
-      which stops LAND vehicles from driving INTO the water (see
-      `Car.tsx`'s "hard backstop... independent of the WATER_BOUNDARY
-      collider" comment) — boats need the mirror-image restriction
-      (clamp/block them from leaving water onto land), which doesn't
-      exist yet. Check `components/Boat.tsx`/`PatrolBoat.tsx`'s own
-      collision groups (`lib/collisionGroups.ts`) — they may currently
-      share `VEHICLE_SWEEP_GROUPS` with land vehicles, which is why they
-      pass through the same VEHICLE_ONLY curbs/gates land vehicles do;
-      boats should probably be blocked by ordinary ground geometry
-      instead.
+- [x] 48. ★★★☆☆ **[Done by Akul]** **Restrict boats to water only — currently drive onto
+      roads/land.** Fixed. Root cause was different from the original
+      guess: not a collision-group filter issue — boats had ZERO Rapier
+      colliders at all. Built a real `clampToWater()` in `lib/marina.ts`
+      mirroring `clampFromWater()`'s pier-band logic exactly (not a naive
+      x-threshold copy), applied to both `Boat.tsx` and `PatrolBoat.tsx`
+      (which had no land restriction whatsoever before). `tsc`/build clean,
+      verified via direct code diff review.
 
 - [ ] 49. ★★★☆☆ **Bike redesign — new shape, wider body, wheels that
       actually spin.** Current `BikeMesh`/`Wheel` in `components/Bike.tsx`
