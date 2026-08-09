@@ -372,9 +372,16 @@ export function BikeMesh({
   );
 }
 
-const RIDER_JACKET_MAT = new THREE.MeshStandardMaterial({ color: "#1c1e22", roughness: 0.6 });
-const RIDER_HELMET_MAT = new THREE.MeshStandardMaterial({ color: "#101114", roughness: 0.3, metalness: 0.3 });
-const RIDER_LIMB_MAT = new THREE.MeshStandardMaterial({ color: "#26282c", roughness: 0.65 });
+// Was #1c1e22/#101114/#26282c — near-black enough that under open-air scene
+// lighting (no local fill light, unlike CarInterior.tsx/HeliCockpit.tsx's
+// shaded cabin occupants, which don't need brighter base colors because
+// they have their own pointLight) diffuse shading had almost nothing to
+// work with, so the rider read as a flat black silhouette rather than a
+// lit rider. Brightened enough to pick up real highlight/shadow contrast in
+// daylight while staying a plausible dark riding-gear palette, not colorful.
+const RIDER_JACKET_MAT = new THREE.MeshStandardMaterial({ color: "#3a3f47", roughness: 0.55 });
+const RIDER_HELMET_MAT = new THREE.MeshStandardMaterial({ color: "#23262c", roughness: 0.2, metalness: 0.5 });
+const RIDER_LIMB_MAT = new THREE.MeshStandardMaterial({ color: "#454a52", roughness: 0.6 });
 
 // a minimal seated silhouette, not the full walk-cycle rig Pedestrians.tsx
 // builds (that's tuned for walking animation, overkill for a fixed seated
