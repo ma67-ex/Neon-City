@@ -13,7 +13,7 @@ import { vehicleState } from "@/lib/vehicleState";
 import { loadSave } from "@/lib/saveGame";
 import { applyCameraRig } from "@/lib/cameraRig";
 import { WATER_LEVEL } from "@/components/Water";
-import { pierPush } from "@/lib/marina";
+import { pierPush, clampToWater } from "@/lib/marina";
 import { BoatMirrors } from "@/components/BoatMirrors";
 
 // A second hull, moored at the marina — near-copy of Boat.tsx (same
