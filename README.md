@@ -5,6 +5,10 @@
 ![Physics](https://img.shields.io/badge/physics-Rapier-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+[![Neon City Drive title screen](docs/screenshot.png)](https://neon-city-amber.vercel.app)
+
+**[Live demo](https://neon-city-amber.vercel.app)**
+
 A GTA-inspired, single-player 3D driving game in the browser. Drive, ride, sail
 and walk around an endlessly streaming neon city, steal traffic cars, outrun a
 police convoy, and duck into a nightclub — all rendered in WebGL with real
